@@ -1,5 +1,10 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { loadConfig, DenshobatoAgent, type DenshobatoConfig } from '@denshobato-studio/core';
+import {
+  loadConfig,
+  DenshobatoAgent,
+  deriveSessionTitleFromMessages,
+  type DenshobatoConfig,
+} from '@denshobato-studio/core';
 
 const API_PREFIX = '/__denshobato';
 
@@ -106,6 +111,7 @@ export function createMiddleware(
           200,
           sessions.map((s) => ({
             id: s.id,
+            title: deriveSessionTitleFromMessages(s.messages),
             createdAt: s.createdAt,
             updatedAt: s.updatedAt,
             messageCount: s.messages.length,

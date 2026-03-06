@@ -176,19 +176,21 @@ export function PreviewPane() {
   return (
     <div style={s.rightPane}>
       <div style={s.previewHero}>
-        <button
-          type="button"
-          style={selectorActive ? s.previewHeroBtnActive : s.previewHeroBtn}
-          onClick={handleDirectInstruction}
-        >
-          {selectorActive
-            ? copy.selectorActiveCta
-            : selectedElement
-              ? copy.selectorSelectedCta
-              : copy.directInstructionCta}
-        </button>
-        <div style={s.previewHeroDescription}>
-          {hasApiKey ? copy.directInstructionHint : copy.directInstructionDisabled}
+        <div style={s.previewHeroCopy}>
+          <button
+            type="button"
+            style={selectorActive ? s.previewHeroBtnActive : s.previewHeroBtn}
+            onClick={handleDirectInstruction}
+          >
+            {selectorActive
+              ? copy.selectorActiveCta
+              : selectedElement
+                ? copy.selectorSelectedCta
+                : copy.directInstructionCta}
+          </button>
+          <div style={s.previewHeroDescription}>
+            {hasApiKey ? copy.directInstructionHint : copy.directInstructionDisabled}
+          </div>
         </div>
       </div>
 

@@ -46,7 +46,7 @@ export function SessionList() {
               onClick={() => openSession(session.id)}
             >
               <div style={s.sessionItemTitle}>
-                {copy.sessionLabel(session.id.slice(0, 8))}
+                {session.title || copy.sessionLabel(session.id.slice(0, 8))}
               </div>
               <div style={s.sessionItemMeta}>
                 {copy.sessionMeta(session.messageCount, session.changeCount, session.updatedAt)}

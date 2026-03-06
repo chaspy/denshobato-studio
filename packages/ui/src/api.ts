@@ -22,6 +22,7 @@ export interface ChatResponse {
 
 export interface SessionSummary {
   id: string;
+  title: string | null;
   createdAt: number;
   updatedAt: number;
   messageCount: number;

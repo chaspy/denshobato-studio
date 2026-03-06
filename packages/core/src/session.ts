@@ -38,6 +38,24 @@ export interface Session {
   }>;
 }
 
+export function deriveSessionTitleFromMessages(
+  messages: Array<Pick<Message, 'role' | 'content'>>,
+): string | null {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message.role !== 'user') continue;
+
+    const normalized = message.content.replace(/\s+/g, ' ').trim();
+    if (!normalized) continue;
+
+    return normalized.length > 48
+      ? `${normalized.slice(0, 45).trimEnd()}...`
+      : normalized;
+  }
+
+  return null;
+}
+
 export class SessionManager {
   private sessions: Map<string, Session> = new Map();
   private storageDir: string | null;

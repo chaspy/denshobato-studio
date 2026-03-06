@@ -52,6 +52,9 @@ type Translator = {
   describeChange: string;
   send: string;
   thinking: Record<ThinkingMode, string>;
+  deepThinkTrace: string[];
+  processingElapsed: (seconds: number) => string;
+  processingFinished: (seconds: number) => string;
   revert: string;
   directInstructionCta: string;
   directInstructionHint: string;
@@ -128,6 +131,15 @@ const translations: Record<Language, Translator> = {
       standard: 'Thinking...',
       deep: 'Deep thinking...',
     },
+    deepThinkTrace: [
+      'Breaking the request into concrete changes.',
+      'Scanning relevant files and impact areas.',
+      'Comparing implementation options and edge cases.',
+      'Preparing edits and verification checkpoints.',
+      'Drafting the final response.',
+    ],
+    processingElapsed: (seconds) => `${seconds}s elapsed`,
+    processingFinished: (seconds) => `Completed in ${seconds}s`,
     revert: 'Revert',
     directInstructionCta: 'Direct the UI visually',
     directInstructionHint: 'Click this, then pick any element in the preview to tell Denshobato what to change.',
@@ -203,6 +215,15 @@ const translations: Record<Language, Translator> = {
       standard: '考え中...',
       deep: '深く考え中...',
     },
+    deepThinkTrace: [
+      '依頼内容を細かい変更単位に分解しています。',
+      '関連ファイルと影響範囲を洗い出しています。',
+      '実装方針と抜け漏れを比較しています。',
+      '編集内容と確認ポイントを組み立てています。',
+      '最終的な返答をまとめています。',
+    ],
+    processingElapsed: (seconds) => `${seconds}秒経過`,
+    processingFinished: (seconds) => `${seconds}秒かかりました`,
     revert: '元に戻す',
     directInstructionCta: 'UI で直接指示する！',
     directInstructionHint: '押したあとにプレビュー上の要素をクリックすると、どこを直すかそのまま指示できます。',

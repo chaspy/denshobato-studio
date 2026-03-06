@@ -10,6 +10,7 @@ import {
   type Language,
   type ThinkingMode,
 } from './i18n.js';
+import { deriveSessionTitle } from './session-title.js';
 
 export interface SelectedElement {
   file: string;
@@ -29,6 +30,7 @@ export interface Message {
 
 export interface SessionSummary {
   id: string;
+  title: string | null;
   createdAt: number;
   updatedAt: number;
   messageCount: number;
@@ -211,6 +213,15 @@ export const useStore = create<DenshobatoState>((set, get) => ({
         sessionId: result.sessionId,
         loading: false,
         messages: [...s.messages, assistantMsg],
+        sessions: s.sessions.map((session) => (
+          session.id === result.sessionId
+            ? {
+                ...session,
+                title: deriveSessionTitle([...s.messages, userMsg]),
+                updatedAt: Date.now(),
+              }
+            : session
+        )),
       }));
     } catch (e) {
       set({ loading: false, error: e instanceof Error ? e.message : String(e) });

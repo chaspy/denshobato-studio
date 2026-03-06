@@ -4,6 +4,7 @@ export {
   type Session,
   type Message,
   type SessionPreferences,
+  deriveSessionTitleFromMessages,
 } from './session.js';
 export { FileOperations, type FilePatch } from './file-ops.js';
 export { DenshobatoAgent } from './agent.js';

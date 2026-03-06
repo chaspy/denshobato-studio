@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { SessionManager } from '../session.js';
+import { SessionManager, deriveSessionTitleFromMessages } from '../session.js';
 import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -59,6 +59,14 @@ describe('SessionManager', () => {
       manager.addMessage(s1.id, { role: 'user', content: 'later' });
       const list = manager.listSessions();
       expect(list[0].id).toBe(s1.id);
+    });
+
+    it('derives a session title from the latest user message', () => {
+      expect(deriveSessionTitleFromMessages([
+        { role: 'user', content: 'first instruction' },
+        { role: 'assistant', content: 'done' },
+        { role: 'user', content: 'make the header sticky and tighten spacing' },
+      ])).toBe('make the header sticky and tighten spacing');
     });
   });
 

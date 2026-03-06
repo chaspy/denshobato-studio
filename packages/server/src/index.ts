@@ -1,6 +1,11 @@
 import express, { type Express } from 'express';
 import cors from 'cors';
-import { loadConfig, DenshobatoAgent, GitHubIntegration } from '@denshobato-studio/core';
+import {
+  loadConfig,
+  DenshobatoAgent,
+  GitHubIntegration,
+  deriveSessionTitleFromMessages,
+} from '@denshobato-studio/core';
 
 export interface ServerOptions {
   projectDir: string;
@@ -64,6 +69,7 @@ export async function createServer(options: ServerOptions): Promise<Express> {
     res.json(
       sessions.map((s) => ({
         id: s.id,
+        title: deriveSessionTitleFromMessages(s.messages),
         createdAt: s.createdAt,
         updatedAt: s.updatedAt,
         messageCount: s.messages.length,
