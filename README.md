@@ -90,7 +90,9 @@ pnpm build
 pnpm test
 
 # Run example app
-pnpm example:dev
+make dev
+# Studio: http://localhost:39483/dev
+# Default preview port: 39483
 ```
 
 ## License
