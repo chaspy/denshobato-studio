@@ -65,6 +65,8 @@ export function createMiddleware(
         const body = await readBody(req);
         const a = await getAgent();
         const sessionManager = a.getSessionManager();
+        const apiKeyHeader = req.headers['x-denshobato-api-key'];
+        const apiKey = Array.isArray(apiKeyHeader) ? apiKeyHeader[0] : apiKeyHeader;
 
         // Create or reuse session
         let sessionId = body.sessionId as string | undefined;
@@ -73,11 +75,20 @@ export function createMiddleware(
           sessionId = session.id;
         }
 
-        const result = await a.chat(sessionId, body.message as string, body.context as {
-          file?: string;
-          line?: number;
-          component?: string;
-        });
+        const result = await a.chat(
+          sessionId,
+          body.message as string,
+          body.context as {
+            file?: string;
+            line?: number;
+            component?: string;
+          },
+          body.preferences as {
+            responseLanguage?: 'en' | 'ja';
+            thinkingMode?: 'standard' | 'deep';
+          } | undefined,
+          apiKey?.trim(),
+        );
 
         return sendJson(res, 200, {
           sessionId,

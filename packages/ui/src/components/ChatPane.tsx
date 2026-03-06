@@ -38,13 +38,6 @@ export function ChatPane() {
     sendMessage(trimmed);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
   const hasChanges = messages.some((m) => m.patches && m.patches.length > 0);
 
   return (
@@ -159,7 +152,6 @@ export function ChatPane() {
           style={s.input}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
           placeholder={
             !hasApiKey
               ? copy.chatLockedPlaceholder
