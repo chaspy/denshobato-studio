@@ -3,13 +3,16 @@ import { api, type ChatResponse } from './api.js';
 import {
   getInitialApiKey,
   getInitialLanguage,
+  getInitialPreviewPort,
   getInitialThinkingMode,
   persistApiKey,
   persistLanguage,
+  persistPreviewPort,
   persistThinkingMode,
   type Language,
   type ThinkingMode,
 } from './i18n.js';
+import { normalizePreviewUrl } from './preview-url.js';
 import { deriveSessionTitle } from './session-title.js';
 
 export interface SelectedElement {
@@ -48,6 +51,7 @@ interface DenshobatoState {
   apiKey: string;
   language: Language;
   thinkingMode: ThinkingMode;
+  previewPort: string;
 
   // Session
   sessionId: string | null;
@@ -75,6 +79,7 @@ interface DenshobatoState {
   setApiKey: (apiKey: string) => void;
   setLanguage: (language: Language) => void;
   setThinkingMode: (mode: ThinkingMode) => void;
+  setPreviewPort: (previewPort: string) => void;
   setPreviewUrl: (url: string) => void;
   loadSessions: () => Promise<void>;
   createSession: () => void;
@@ -100,6 +105,7 @@ export const useStore = create<DenshobatoState>((set, get) => ({
   apiKey: getInitialApiKey(),
   language: getInitialLanguage(),
   thinkingMode: getInitialThinkingMode(),
+  previewPort: getInitialPreviewPort(),
   sessionId: null,
   draftBaseSessionId: null,
   sessions: [],
@@ -129,11 +135,25 @@ export const useStore = create<DenshobatoState>((set, get) => ({
     set({ thinkingMode });
   },
 
-  setPreviewUrl: (url) => {
-    const sessionId = get().sessionId;
-    set({ previewUrl: url });
+  setPreviewPort: (previewPort) => {
+    persistPreviewPort(previewPort);
+    const normalizedPort = getInitialPreviewPort();
+    const { sessionId, previewUrl } = get();
+    const normalizedPreviewUrl = normalizePreviewUrl(previewUrl, normalizedPort);
+    set({ previewPort: normalizedPort, previewUrl: normalizedPreviewUrl });
     if (sessionId) {
-      void api.updateSessionPreview(sessionId, url).catch(() => {
+      void api.updateSessionPreview(sessionId, normalizedPreviewUrl).catch(() => {
+        // Preserve optimistic preview navigation even if persistence fails.
+      });
+    }
+  },
+
+  setPreviewUrl: (url) => {
+    const { sessionId, previewPort } = get();
+    const normalized = normalizePreviewUrl(url, previewPort);
+    set({ previewUrl: normalized });
+    if (sessionId) {
+      void api.updateSessionPreview(sessionId, normalized).catch(() => {
         // Preserve optimistic preview navigation even if persistence fails.
       });
     }
@@ -171,7 +191,7 @@ export const useStore = create<DenshobatoState>((set, get) => ({
         view: 'chat',
         sessionId: id,
         draftBaseSessionId: null,
-        previewUrl: session.previewUrl || '/',
+        previewUrl: normalizePreviewUrl(session.previewUrl || '/', get().previewPort),
         messages: session.messages.map((m) => ({
           id: genId(),
           role: m.role,

@@ -26,9 +26,6 @@ export function PreviewPane() {
 
   const navigateTo = (url: string) => {
     setPreviewUrl(url);
-    if (iframeRef.current) {
-      iframeRef.current.src = url;
-    }
   };
 
   const handleUrlSubmit = (e: React.FormEvent) => {

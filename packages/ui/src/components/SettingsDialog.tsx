@@ -4,20 +4,32 @@ import { studioStyles as s } from '../styles.js';
 import { getCopy, type Language } from '../i18n.js';
 
 export function SettingsDialog() {
-  const { settingsOpen, setSettingsOpen, apiKey, setApiKey, language, setLanguage } = useStore();
+  const {
+    settingsOpen,
+    setSettingsOpen,
+    apiKey,
+    setApiKey,
+    language,
+    setLanguage,
+    previewPort,
+    setPreviewPort,
+  } = useStore();
   const [draftApiKey, setDraftApiKey] = useState(apiKey);
   const [draftLanguage, setDraftLanguage] = useState<Language>(language);
+  const [draftPreviewPort, setDraftPreviewPort] = useState(previewPort);
   const copy = getCopy(draftLanguage);
 
   useEffect(() => {
     if (!settingsOpen) return;
     setDraftApiKey(apiKey);
     setDraftLanguage(language);
-  }, [settingsOpen, apiKey, language]);
+    setDraftPreviewPort(previewPort);
+  }, [settingsOpen, apiKey, language, previewPort]);
 
   const handleSave = () => {
     setApiKey(draftApiKey);
     setLanguage(draftLanguage);
+    setPreviewPort(draftPreviewPort);
     setSettingsOpen(false);
   };
 
@@ -41,6 +53,21 @@ export function SettingsDialog() {
             placeholder={copy.apiKeyPlaceholder}
           />
           <div style={s.dialogHelp}>{copy.apiKeyHelp}</div>
+        </div>
+
+        <div style={s.dialogField}>
+          <label style={s.dialogLabel}>{copy.previewPortLabel}</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            spellCheck={false}
+            style={s.dialogInput}
+            value={draftPreviewPort}
+            onChange={(event) => setDraftPreviewPort(event.target.value.replace(/\D+/g, ''))}
+            placeholder={copy.previewPortPlaceholder}
+          />
+          <div style={s.dialogHelp}>{copy.previewPortHelp}</div>
         </div>
 
         <div style={s.dialogField}>

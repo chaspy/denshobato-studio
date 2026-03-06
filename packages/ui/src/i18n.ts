@@ -4,6 +4,8 @@ export type ThinkingMode = 'standard' | 'deep';
 export const LANGUAGE_STORAGE_KEY = 'denshobato:language';
 export const THINKING_MODE_STORAGE_KEY = 'denshobato:thinking-mode';
 export const API_KEY_STORAGE_KEY = 'denshobato:api-key';
+export const PREVIEW_PORT_STORAGE_KEY = 'denshobato:preview-port';
+export const DEFAULT_PREVIEW_PORT = '5173';
 
 type Translator = {
   appTitle: string;
@@ -20,6 +22,9 @@ type Translator = {
   apiKeyLabel: string;
   apiKeyPlaceholder: string;
   apiKeyHelp: string;
+  previewPortLabel: string;
+  previewPortPlaceholder: string;
+  previewPortHelp: string;
   apiKeyRequiredTitle: string;
   apiKeyRequiredDescription: string;
   openSettings: string;
@@ -96,6 +101,9 @@ const translations: Record<Language, Translator> = {
     apiKeyLabel: 'Anthropic API Key',
     apiKeyPlaceholder: 'sk-ant-...',
     apiKeyHelp: 'Stored locally in this browser and sent only when chat requests are made.',
+    previewPortLabel: 'Default Preview Port',
+    previewPortPlaceholder: '5173',
+    previewPortHelp: 'Applied automatically when you enter localhost without an explicit port.',
     apiKeyRequiredTitle: 'API key required',
     apiKeyRequiredDescription: 'Open settings and add your Anthropic API key before starting a session.',
     openSettings: 'Open settings',
@@ -180,6 +188,9 @@ const translations: Record<Language, Translator> = {
     apiKeyLabel: 'Anthropic API Key',
     apiKeyPlaceholder: 'sk-ant-...',
     apiKeyHelp: 'このブラウザのローカルに保存され、チャット送信時だけ利用されます。',
+    previewPortLabel: 'プレビュー既定ポート',
+    previewPortPlaceholder: '5173',
+    previewPortHelp: 'localhost にポートが含まれない場合、この番号を自動で補完します。',
     apiKeyRequiredTitle: 'API キーが必要です',
     apiKeyRequiredDescription: 'セッションを始める前に設定画面から Anthropic API Key を入力してください。',
     openSettings: '設定を開く',
@@ -277,6 +288,11 @@ export function getInitialApiKey(): string {
   return readStoredValue(API_KEY_STORAGE_KEY) ?? '';
 }
 
+export function getInitialPreviewPort(): string {
+  const stored = readStoredValue(PREVIEW_PORT_STORAGE_KEY);
+  return normalizePreviewPort(stored);
+}
+
 export function persistLanguage(language: Language): void {
   writeStoredValue(LANGUAGE_STORAGE_KEY, language);
 }
@@ -293,6 +309,15 @@ export function persistApiKey(apiKey: string): void {
   writeStoredValue(API_KEY_STORAGE_KEY, apiKey.trim());
 }
 
+export function persistPreviewPort(previewPort: string): void {
+  const normalized = normalizePreviewPort(previewPort);
+  if (!normalized) {
+    removeStoredValue(PREVIEW_PORT_STORAGE_KEY);
+    return;
+  }
+  writeStoredValue(PREVIEW_PORT_STORAGE_KEY, normalized);
+}
+
 export function formatDate(language: Language, value: number): string {
   return new Date(value).toLocaleString(language === 'ja' ? 'ja-JP' : 'en-US');
 }
@@ -304,6 +329,11 @@ function readStoredValue(key: string): string | null {
   } catch {
     return null;
   }
+}
+
+function normalizePreviewPort(value: string | null | undefined): string {
+  const digits = (value ?? '').trim().replace(/\D+/g, '');
+  return digits || DEFAULT_PREVIEW_PORT;
 }
 
 function writeStoredValue(key: string, value: string): void {
