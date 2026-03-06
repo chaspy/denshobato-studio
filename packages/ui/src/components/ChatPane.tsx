@@ -186,8 +186,9 @@ export function ChatPane() {
             onClick={() => setShowModeInfo((value) => !value)}
             title={copy.info}
             aria-pressed={showModeInfo}
+            aria-label={copy.info}
           >
-            i
+            &#9432;
           </button>
           {showModeInfo && (
             <div style={s.modeInfoPopover}>

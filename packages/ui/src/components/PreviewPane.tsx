@@ -192,12 +192,6 @@ export function PreviewPane() {
   return (
     <div style={s.rightPane}>
       <div style={s.previewHero}>
-        <div style={s.previewHeroCopy}>
-          <div style={s.previewHeroTitle}>{copy.directInstructionCta}</div>
-          <div style={s.previewHeroDescription}>
-            {hasApiKey ? copy.directInstructionHint : copy.directInstructionDisabled}
-          </div>
-        </div>
         <button
           type="button"
           style={selectorActive ? s.previewHeroBtnActive : s.previewHeroBtn}
@@ -209,6 +203,9 @@ export function PreviewPane() {
               ? copy.selectorSelectedCta
               : copy.directInstructionCta}
         </button>
+        <div style={s.previewHeroDescription}>
+          {hasApiKey ? copy.directInstructionHint : copy.directInstructionDisabled}
+        </div>
       </div>
 
       {/* URL bar */}
