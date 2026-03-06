@@ -547,6 +547,7 @@ export const studioStyles = {
     inset: '0',
     cursor: 'crosshair',
     zIndex: 10,
+    pointerEvents: 'none' as const,
   },
   // Error
   error: {

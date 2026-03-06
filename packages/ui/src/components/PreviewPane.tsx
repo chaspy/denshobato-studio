@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useStore } from '../store.js';
 import { studioStyles as s, colors } from '../styles.js';
 import { getCopy } from '../i18n.js';
@@ -43,22 +43,6 @@ export function PreviewPane() {
     }
     toggleSelector();
   };
-
-  const handleSelectorClick = useCallback(
-    (e: React.MouseEvent) => {
-      if (!selectorActive) return;
-      e.preventDefault();
-      e.stopPropagation();
-
-      // We need to communicate with the iframe to get the clicked element
-      // Send a message to the iframe to get element info
-      const iframe = iframeRef.current;
-      if (!iframe?.contentWindow) return;
-
-      iframe.contentWindow.postMessage({ type: 'denshobato:getElementAt', x: e.clientX, y: e.clientY }, '*');
-    },
-    [selectorActive],
-  );
 
   // Listen for messages from iframe
   useEffect(() => {
@@ -244,7 +228,6 @@ export function PreviewPane() {
               ...s.selectorOverlay,
               background: 'rgba(124, 92, 252, 0.05)',
             }}
-            onClick={handleSelectorClick}
           >
             <div style={{
               position: 'absolute',
