@@ -23,6 +23,7 @@ export interface ChatResponse {
 export interface SessionSummary {
   id: string;
   title: string | null;
+  previewUrl?: string;
   createdAt: number;
   updatedAt: number;
   messageCount: number;
@@ -33,6 +34,7 @@ export interface SessionDetail {
   id: string;
   createdAt: number;
   updatedAt: number;
+  previewUrl: string;
   messages: Array<{
     role: 'user' | 'assistant';
     content: string;
@@ -78,10 +80,11 @@ export const api = {
     context?: { file?: string; line?: number; component?: string },
     preferences?: ChatPreferences,
     apiKey?: string,
+    previewUrl?: string,
   ): Promise<ChatResponse> {
     return fetchJson('/chat', {
       method: 'POST',
-      body: JSON.stringify({ message, sessionId, context, preferences }),
+      body: JSON.stringify({ message, sessionId, context, preferences, previewUrl }),
       apiKey,
     });
   },
@@ -92,6 +95,13 @@ export const api = {
 
   getSession(id: string): Promise<SessionDetail> {
     return fetchJson(`/session/${id}`);
+  },
+
+  updateSessionPreview(sessionId: string, previewUrl: string): Promise<{ previewUrl: string }> {
+    return fetchJson(`/session/${sessionId}/preview`, {
+      method: 'POST',
+      body: JSON.stringify({ previewUrl }),
+    });
   },
 
   revert(sessionId: string): Promise<{ reverted: string[] }> {

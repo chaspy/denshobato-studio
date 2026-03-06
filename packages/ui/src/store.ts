@@ -124,7 +124,15 @@ export const useStore = create<DenshobatoState>((set, get) => ({
     set({ thinkingMode });
   },
 
-  setPreviewUrl: (url) => set({ previewUrl: url }),
+  setPreviewUrl: (url) => {
+    const sessionId = get().sessionId;
+    set({ previewUrl: url });
+    if (sessionId) {
+      void api.updateSessionPreview(sessionId, url).catch(() => {
+        // Preserve optimistic preview navigation even if persistence fails.
+      });
+    }
+  },
 
   loadSessions: async () => {
     try {
@@ -150,6 +158,7 @@ export const useStore = create<DenshobatoState>((set, get) => ({
       set({
         view: 'chat',
         sessionId: id,
+        previewUrl: session.previewUrl || '/',
         messages: session.messages.map((m) => ({
           id: genId(),
           role: m.role,
@@ -170,7 +179,7 @@ export const useStore = create<DenshobatoState>((set, get) => ({
   toggleSelector: () => set((s) => ({ selectorActive: !s.selectorActive })),
 
   sendMessage: async (message) => {
-    const { sessionId, selectedElement, language, thinkingMode, apiKey } = get();
+    const { sessionId, selectedElement, language, thinkingMode, apiKey, previewUrl } = get();
     if (!apiKey) {
       set({ settingsOpen: true });
       return;
@@ -199,7 +208,7 @@ export const useStore = create<DenshobatoState>((set, get) => ({
       const result: ChatResponse = await api.chat(message, sessionId ?? undefined, context, {
         responseLanguage: language,
         thinkingMode,
-      }, apiKey);
+      }, apiKey, previewUrl);
 
       const assistantMsg: Message = {
         id: genId(),

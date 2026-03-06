@@ -29,6 +29,7 @@ export interface Session {
   id: string;
   createdAt: number;
   updatedAt: number;
+  previewUrl: string;
   messages: Message[];
   snapshots: FileSnapshot[];
   changes: Array<{
@@ -68,11 +69,12 @@ export class SessionManager {
     }
   }
 
-  createSession(): Session {
+  createSession(previewUrl = '/'): Session {
     const session: Session = {
       id: randomUUID(),
       createdAt: Date.now(),
       updatedAt: Date.now(),
+      previewUrl,
       messages: [],
       snapshots: [],
       changes: [],
@@ -99,6 +101,15 @@ export class SessionManager {
     session.updatedAt = Date.now();
     this.persist(session);
     return msg;
+  }
+
+  setPreviewUrl(sessionId: string, previewUrl: string): void {
+    const session = this.sessions.get(sessionId);
+    if (!session) throw new Error(`Session not found: ${sessionId}`);
+
+    session.previewUrl = previewUrl;
+    session.updatedAt = Date.now();
+    this.persist(session);
   }
 
   addSnapshot(sessionId: string, file: string, content: string): void {
@@ -141,6 +152,7 @@ export class SessionManager {
       try {
         const raw = readFileSync(join(this.storageDir, file), 'utf-8');
         const session = JSON.parse(raw) as Session;
+        session.previewUrl = session.previewUrl || '/';
         this.sessions.set(session.id, session);
       } catch {
         // Skip corrupted session files

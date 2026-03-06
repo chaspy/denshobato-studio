@@ -256,18 +256,22 @@ export function ChatPane() {
             {copy.send}
           </button>
         </div>
-        {(lastDurationSeconds !== null || hasChanges) && (
-          <div style={s.inputActions}>
-            <div style={s.inputMeta}>
-              {lastDurationSeconds !== null ? copy.processingFinished(lastDurationSeconds) : ''}
-            </div>
-            {hasChanges && (
-              <button style={s.prActionBtn} onClick={() => setPRDialogOpen(true)}>
-                {copy.createPR}
-              </button>
-            )}
+        <div style={s.inputActions}>
+          <div style={s.inputMeta}>
+            {lastDurationSeconds !== null ? copy.processingFinished(lastDurationSeconds) : ''}
           </div>
-        )}
+          <button
+            style={{
+              ...s.prActionBtn,
+              opacity: hasChanges ? 1 : 0.45,
+              cursor: hasChanges ? 'pointer' : 'not-allowed',
+            }}
+            onClick={() => setPRDialogOpen(true)}
+            disabled={!hasChanges}
+          >
+            {copy.createPR}
+          </button>
+        </div>
       </div>
     </>
   );

@@ -16,8 +16,16 @@ describe('SessionManager', () => {
     it('creates a session', () => {
       const session = manager.createSession();
       expect(session.id).toBeDefined();
+      expect(session.previewUrl).toBe('/');
       expect(session.messages).toEqual([]);
       expect(session.snapshots).toEqual([]);
+    });
+
+    it('stores preview url per session', () => {
+      const session = manager.createSession('/todos');
+      expect(session.previewUrl).toBe('/todos');
+      manager.setPreviewUrl(session.id, '/about');
+      expect(manager.getSession(session.id)?.previewUrl).toBe('/about');
     });
 
     it('retrieves a session by id', () => {

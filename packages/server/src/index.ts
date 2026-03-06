@@ -45,14 +45,16 @@ export async function createServer(options: ServerOptions): Promise<Express> {
   // Chat
   app.post('/__denshobato/chat', async (req, res) => {
     try {
-      const { message, sessionId, context, preferences } = req.body;
+      const { message, sessionId, context, preferences, previewUrl } = req.body;
       const apiKeyHeader = req.header('x-denshobato-api-key')?.trim();
       const sm = agent.getSessionManager();
 
       let sid = sessionId;
       if (!sid) {
-        const session = sm.createSession();
+        const session = sm.createSession(typeof previewUrl === 'string' ? previewUrl : '/');
         sid = session.id;
+      } else if (typeof previewUrl === 'string') {
+        sm.setPreviewUrl(sid, previewUrl);
       }
 
       const result = await agent.chat(sid, message, context, preferences, apiKeyHeader);
@@ -70,6 +72,7 @@ export async function createServer(options: ServerOptions): Promise<Express> {
       sessions.map((s) => ({
         id: s.id,
         title: deriveSessionTitleFromMessages(s.messages),
+        previewUrl: s.previewUrl,
         createdAt: s.createdAt,
         updatedAt: s.updatedAt,
         messageCount: s.messages.length,
@@ -83,6 +86,19 @@ export async function createServer(options: ServerOptions): Promise<Express> {
     const session = agent.getSessionManager().getSession(req.params.id);
     if (!session) return res.status(404).json({ error: 'Session not found' });
     res.json(session);
+  });
+
+  app.post('/__denshobato/session/:id/preview', (req, res) => {
+    try {
+      const session = agent.getSessionManager().getSession(req.params.id);
+      if (!session) return res.status(404).json({ error: 'Session not found' });
+      const previewUrl = typeof req.body.previewUrl === 'string' ? req.body.previewUrl : '/';
+      agent.getSessionManager().setPreviewUrl(req.params.id, previewUrl);
+      res.json({ previewUrl });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ error: msg });
+    }
   });
 
   // Revert session

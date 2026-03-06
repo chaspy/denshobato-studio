@@ -76,8 +76,12 @@ export function createMiddleware(
         // Create or reuse session
         let sessionId = body.sessionId as string | undefined;
         if (!sessionId) {
-          const session = sessionManager.createSession();
+          const session = sessionManager.createSession(
+            typeof body.previewUrl === 'string' ? body.previewUrl : '/',
+          );
           sessionId = session.id;
+        } else if (typeof body.previewUrl === 'string') {
+          sessionManager.setPreviewUrl(sessionId, body.previewUrl);
         }
 
         const result = await a.chat(
@@ -112,6 +116,7 @@ export function createMiddleware(
           sessions.map((s) => ({
             id: s.id,
             title: deriveSessionTitleFromMessages(s.messages),
+            previewUrl: s.previewUrl,
             createdAt: s.createdAt,
             updatedAt: s.updatedAt,
             messageCount: s.messages.length,
@@ -129,6 +134,19 @@ export function createMiddleware(
           return sendJson(res, 404, { error: 'Session not found' });
         }
         return sendJson(res, 200, session);
+      }
+
+      const previewMatch = path.match(/^\/session\/([^/]+)\/preview$/);
+      if (previewMatch && method === 'POST') {
+        const body = await readBody(req);
+        const a = await getAgent();
+        const session = a.getSessionManager().getSession(previewMatch[1]);
+        if (!session) {
+          return sendJson(res, 404, { error: 'Session not found' });
+        }
+        const previewUrl = typeof body.previewUrl === 'string' ? body.previewUrl : '/';
+        a.getSessionManager().setPreviewUrl(previewMatch[1], previewUrl);
+        return sendJson(res, 200, { previewUrl });
       }
 
       // POST /session/:id/revert
