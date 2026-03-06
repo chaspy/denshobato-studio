@@ -21,6 +21,15 @@ export async function createServer(options: ServerOptions): Promise<Express> {
   const config = await loadConfig(projectDir);
   const agent = new DenshobatoAgent(config, projectDir);
 
+  async function getCurrentGitBranch(): Promise<string | null> {
+    const github = new GitHubIntegration(projectDir, {
+      baseBranch: config.github.baseBranch,
+      owner: config.github.owner,
+      repo: config.github.repo,
+    });
+    return github.getCurrentBranch();
+  }
+
   const app = express();
 
   app.use(cors({ origin: corsOrigin }));
@@ -45,18 +54,29 @@ export async function createServer(options: ServerOptions): Promise<Express> {
   // Chat
   app.post('/__denshobato/chat', async (req, res) => {
     try {
-      const { message, sessionId, context, preferences, previewUrl } = req.body;
+      const { message, sessionId, context, preferences, previewUrl, baseSessionId } = req.body;
       const apiKeyHeader = req.header('x-denshobato-api-key')?.trim();
       const sm = agent.getSessionManager();
 
       let sid = sessionId;
       if (!sid) {
-        const session = sm.createSession(typeof previewUrl === 'string' ? previewUrl : '/');
+        const baseSession =
+          typeof baseSessionId === 'string' ? sm.getSession(baseSessionId) : undefined;
+        const session = sm.createSession({
+          previewUrl:
+            typeof previewUrl === 'string'
+              ? previewUrl
+              : baseSession?.previewUrl ?? '/',
+          baseSessionId: baseSession?.id ?? null,
+          gitBranch: await getCurrentGitBranch(),
+          seedFiles: baseSession?.workspaceFiles,
+        });
         sid = session.id;
       } else if (typeof previewUrl === 'string') {
         sm.setPreviewUrl(sid, previewUrl);
       }
 
+      agent.restoreSessionWorkspace(sid);
       const result = await agent.chat(sid, message, context, preferences, apiKeyHeader);
       res.json({ sessionId: sid, response: result.response, patches: result.patches });
     } catch (error) {
@@ -73,6 +93,8 @@ export async function createServer(options: ServerOptions): Promise<Express> {
         id: s.id,
         title: deriveSessionTitleFromMessages(s.messages),
         previewUrl: s.previewUrl,
+        baseSessionId: s.baseSessionId,
+        gitBranch: s.gitBranch,
         createdAt: s.createdAt,
         updatedAt: s.updatedAt,
         messageCount: s.messages.length,
@@ -86,6 +108,18 @@ export async function createServer(options: ServerOptions): Promise<Express> {
     const session = agent.getSessionManager().getSession(req.params.id);
     if (!session) return res.status(404).json({ error: 'Session not found' });
     res.json(session);
+  });
+
+  app.post('/__denshobato/session/:id/activate', (req, res) => {
+    try {
+      const session = agent.getSessionManager().getSession(req.params.id);
+      if (!session) return res.status(404).json({ error: 'Session not found' });
+      agent.restoreSessionWorkspace(req.params.id);
+      res.json(agent.getSessionManager().getSession(req.params.id));
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ error: msg });
+    }
   });
 
   app.post('/__denshobato/session/:id/preview', (req, res) => {
@@ -110,8 +144,13 @@ export async function createServer(options: ServerOptions): Promise<Express> {
       const snapshots = agent.getSessionManager().getSnapshots(req.params.id);
       const fileOps = agent.getFileOps();
       for (const snapshot of snapshots) {
-        fileOps.writeFile(snapshot.path, snapshot.content);
+        if (snapshot.exists) {
+          fileOps.writeFile(snapshot.path, snapshot.content);
+        } else {
+          fileOps.deleteFile(snapshot.path);
+        }
       }
+      agent.getSessionManager().revertToSnapshots(req.params.id);
       res.json({ reverted: snapshots.map((s) => s.path) });
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);

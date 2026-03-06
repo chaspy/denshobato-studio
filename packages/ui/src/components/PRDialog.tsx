@@ -1,15 +1,24 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useStore } from '../store.js';
 import { studioStyles as s, colors } from '../styles.js';
 import { getCopy } from '../i18n.js';
 
+function createDefaultBranchName(sessionId: string | null): string {
+  const suffix = sessionId ? sessionId.slice(0, 8) : `${Date.now()}`;
+  return `denshobato/${suffix}`;
+}
+
 export function PRDialog() {
-  const { setPRDialogOpen, createPR, loading, error, clearError, language } = useStore();
-  const [branchName, setBranchName] = useState(`denshobato/${Date.now()}`);
+  const { setPRDialogOpen, createPR, loading, error, clearError, language, sessionId } = useStore();
+  const [branchName, setBranchName] = useState(createDefaultBranchName(sessionId));
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [prUrl, setPrUrl] = useState<string | null>(null);
   const copy = getCopy(language);
+
+  useEffect(() => {
+    setBranchName(createDefaultBranchName(sessionId));
+  }, [sessionId]);
 
   const handleSubmit = async () => {
     if (!title.trim() || !branchName.trim()) return;

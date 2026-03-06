@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
   loadConfig,
   DenshobatoAgent,
+  GitHubIntegration,
   deriveSessionTitleFromMessages,
   type DenshobatoConfig,
 } from '@denshobato-studio/core';
@@ -50,6 +51,16 @@ export function createMiddleware(
     return agent;
   }
 
+  async function getCurrentGitBranch(): Promise<string | null> {
+    const config = await (configPromise ?? loadConfig(projectDir));
+    const github = new GitHubIntegration(projectDir, {
+      baseBranch: config.github.baseBranch,
+      owner: config.github.owner,
+      repo: config.github.repo,
+    });
+    return github.getCurrentBranch();
+  }
+
   return async (req, res, next) => {
     const url = req.url;
     if (!url || !url.startsWith(API_PREFIX)) {
@@ -76,14 +87,25 @@ export function createMiddleware(
         // Create or reuse session
         let sessionId = body.sessionId as string | undefined;
         if (!sessionId) {
-          const session = sessionManager.createSession(
-            typeof body.previewUrl === 'string' ? body.previewUrl : '/',
-          );
+          const baseSession =
+            typeof body.baseSessionId === 'string'
+              ? sessionManager.getSession(body.baseSessionId)
+              : undefined;
+          const session = sessionManager.createSession({
+            previewUrl:
+              typeof body.previewUrl === 'string'
+                ? body.previewUrl
+                : baseSession?.previewUrl ?? '/',
+            baseSessionId: baseSession?.id ?? null,
+            gitBranch: await getCurrentGitBranch(),
+            seedFiles: baseSession?.workspaceFiles,
+          });
           sessionId = session.id;
         } else if (typeof body.previewUrl === 'string') {
           sessionManager.setPreviewUrl(sessionId, body.previewUrl);
         }
 
+        a.restoreSessionWorkspace(sessionId);
         const result = await a.chat(
           sessionId,
           body.message as string,
@@ -117,6 +139,8 @@ export function createMiddleware(
             id: s.id,
             title: deriveSessionTitleFromMessages(s.messages),
             previewUrl: s.previewUrl,
+            baseSessionId: s.baseSessionId,
+            gitBranch: s.gitBranch,
             createdAt: s.createdAt,
             updatedAt: s.updatedAt,
             messageCount: s.messages.length,
@@ -134,6 +158,17 @@ export function createMiddleware(
           return sendJson(res, 404, { error: 'Session not found' });
         }
         return sendJson(res, 200, session);
+      }
+
+      const activateMatch = path.match(/^\/session\/([^/]+)\/activate$/);
+      if (activateMatch && method === 'POST') {
+        const a = await getAgent();
+        const session = a.getSessionManager().getSession(activateMatch[1]);
+        if (!session) {
+          return sendJson(res, 404, { error: 'Session not found' });
+        }
+        a.restoreSessionWorkspace(activateMatch[1]);
+        return sendJson(res, 200, a.getSessionManager().getSession(activateMatch[1]));
       }
 
       const previewMatch = path.match(/^\/session\/([^/]+)\/preview$/);
@@ -160,8 +195,13 @@ export function createMiddleware(
         const fileOps = a.getFileOps();
         const snapshots = a.getSessionManager().getSnapshots(revertMatch[1]);
         for (const snapshot of snapshots) {
-          fileOps.writeFile(snapshot.path, snapshot.content);
+          if (snapshot.exists) {
+            fileOps.writeFile(snapshot.path, snapshot.content);
+          } else {
+            fileOps.deleteFile(snapshot.path);
+          }
         }
+        a.getSessionManager().revertToSnapshots(revertMatch[1]);
         return sendJson(res, 200, { reverted: snapshots.map((s) => s.path) });
       }
 
@@ -179,7 +219,6 @@ export function createMiddleware(
       // POST /pr
       if (path === '/pr' && method === 'POST') {
         const body = await readBody(req);
-        const { GitHubIntegration } = await import('@denshobato-studio/core');
         const a = await getAgent();
         const config = await loadConfig(projectDir);
         const github = new GitHubIntegration(projectDir, {

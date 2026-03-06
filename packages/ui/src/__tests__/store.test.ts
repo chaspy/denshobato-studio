@@ -9,6 +9,7 @@ describe('store', () => {
       language: 'en',
       thinkingMode: 'standard',
       sessionId: null,
+      draftBaseSessionId: null,
       sessions: [],
       messages: [],
       previewUrl: '/',
@@ -45,7 +46,16 @@ describe('store', () => {
     useStore.getState().createSession();
     expect(useStore.getState().view).toBe('chat');
     expect(useStore.getState().sessionId).toBeNull();
+    expect(useStore.getState().draftBaseSessionId).toBeNull();
     expect(useStore.getState().messages).toEqual([]);
+  });
+
+  it('creates a new draft session from the active session', () => {
+    useStore.setState({ sessionId: 'session-1', previewUrl: '/todos' });
+    useStore.getState().createSession();
+    expect(useStore.getState().sessionId).toBeNull();
+    expect(useStore.getState().draftBaseSessionId).toBe('session-1');
+    expect(useStore.getState().previewUrl).toBe('/todos');
   });
 
   it('opens settings instead of creating a session when api key is missing', () => {

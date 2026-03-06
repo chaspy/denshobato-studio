@@ -31,6 +31,9 @@ export interface Message {
 export interface SessionSummary {
   id: string;
   title: string | null;
+  previewUrl?: string;
+  baseSessionId?: string | null;
+  gitBranch?: string | null;
   createdAt: number;
   updatedAt: number;
   messageCount: number;
@@ -48,6 +51,7 @@ interface DenshobatoState {
 
   // Session
   sessionId: string | null;
+  draftBaseSessionId: string | null;
   sessions: SessionSummary[];
   messages: Message[];
 
@@ -97,6 +101,7 @@ export const useStore = create<DenshobatoState>((set, get) => ({
   language: getInitialLanguage(),
   thinkingMode: getInitialThinkingMode(),
   sessionId: null,
+  draftBaseSessionId: null,
   sessions: [],
   messages: [],
   previewUrl: '/',
@@ -144,20 +149,28 @@ export const useStore = create<DenshobatoState>((set, get) => ({
   },
 
   createSession: () => {
-    if (!get().apiKey) {
+    const { apiKey, sessionId } = get();
+    if (!apiKey) {
       set({ settingsOpen: true });
       return;
     }
-    // Session is created on first message send
-    set({ view: 'chat', sessionId: null, messages: [], selectedElement: null });
+    // Session is created on first message send, seeded from the active session if present.
+    set({
+      view: 'chat',
+      sessionId: null,
+      draftBaseSessionId: sessionId,
+      messages: [],
+      selectedElement: null,
+    });
   },
 
   openSession: async (id) => {
     try {
-      const session = await api.getSession(id);
+      const session = await api.activateSession(id);
       set({
         view: 'chat',
         sessionId: id,
+        draftBaseSessionId: null,
         previewUrl: session.previewUrl || '/',
         messages: session.messages.map((m) => ({
           id: genId(),
@@ -179,7 +192,15 @@ export const useStore = create<DenshobatoState>((set, get) => ({
   toggleSelector: () => set((s) => ({ selectorActive: !s.selectorActive })),
 
   sendMessage: async (message) => {
-    const { sessionId, selectedElement, language, thinkingMode, apiKey, previewUrl } = get();
+    const {
+      sessionId,
+      draftBaseSessionId,
+      selectedElement,
+      language,
+      thinkingMode,
+      apiKey,
+      previewUrl,
+    } = get();
     if (!apiKey) {
       set({ settingsOpen: true });
       return;
@@ -205,10 +226,18 @@ export const useStore = create<DenshobatoState>((set, get) => ({
         ? { file: selectedElement.file, line: selectedElement.line, component: selectedElement.tagName }
         : undefined;
 
-      const result: ChatResponse = await api.chat(message, sessionId ?? undefined, context, {
-        responseLanguage: language,
-        thinkingMode,
-      }, apiKey, previewUrl);
+      const result: ChatResponse = await api.chat(
+        message,
+        sessionId ?? undefined,
+        draftBaseSessionId ?? undefined,
+        context,
+        {
+          responseLanguage: language,
+          thinkingMode,
+        },
+        apiKey,
+        previewUrl,
+      );
 
       const assistantMsg: Message = {
         id: genId(),
@@ -217,20 +246,41 @@ export const useStore = create<DenshobatoState>((set, get) => ({
         timestamp: Date.now(),
         patches: result.patches.map((p) => ({ file: p.file, patch: p.patch })),
       };
+      const now = Date.now();
+      const derivedTitle = deriveSessionTitle(get().messages);
 
       set((s) => ({
         sessionId: result.sessionId,
+        draftBaseSessionId: null,
         loading: false,
         messages: [...s.messages, assistantMsg],
-        sessions: s.sessions.map((session) => (
-          session.id === result.sessionId
-            ? {
-                ...session,
-                title: deriveSessionTitle([...s.messages, userMsg]),
-                updatedAt: Date.now(),
-              }
-            : session
-        )),
+        sessions: s.sessions.some((session) => session.id === result.sessionId)
+          ? s.sessions.map((session) => (
+              session.id === result.sessionId
+                ? {
+                    ...session,
+                    title: derivedTitle,
+                    previewUrl,
+                    updatedAt: now,
+                    messageCount: session.messageCount + 2,
+                    changeCount: session.changeCount + result.patches.length,
+                  }
+                : session
+            ))
+          : [
+              {
+                id: result.sessionId,
+                title: derivedTitle,
+                previewUrl,
+                baseSessionId: draftBaseSessionId,
+                gitBranch: null,
+                createdAt: now,
+                updatedAt: now,
+                messageCount: 2,
+                changeCount: result.patches.length,
+              },
+              ...s.sessions,
+            ],
       }));
     } catch (e) {
       set({ loading: false, error: e instanceof Error ? e.message : String(e) });

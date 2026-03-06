@@ -22,6 +22,7 @@ export interface Message {
 export interface FileSnapshot {
   path: string;
   content: string;
+  exists: boolean;
   timestamp: number;
 }
 
@@ -30,13 +31,23 @@ export interface Session {
   createdAt: number;
   updatedAt: number;
   previewUrl: string;
+  baseSessionId: string | null;
+  gitBranch: string | null;
   messages: Message[];
   snapshots: FileSnapshot[];
+  workspaceFiles: Record<string, string>;
   changes: Array<{
     file: string;
     patch: string;
     timestamp: number;
   }>;
+}
+
+export interface CreateSessionOptions {
+  previewUrl?: string;
+  baseSessionId?: string | null;
+  gitBranch?: string | null;
+  seedFiles?: Record<string, string>;
 }
 
 export function deriveSessionTitleFromMessages(
@@ -69,14 +80,21 @@ export class SessionManager {
     }
   }
 
-  createSession(previewUrl = '/'): Session {
+  createSession(options: CreateSessionOptions | string = {}): Session {
+    const resolved =
+      typeof options === 'string'
+        ? { previewUrl: options }
+        : options;
     const session: Session = {
       id: randomUUID(),
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      previewUrl,
+      previewUrl: resolved.previewUrl ?? '/',
+      baseSessionId: resolved.baseSessionId ?? null,
+      gitBranch: resolved.gitBranch ?? null,
       messages: [],
       snapshots: [],
+      workspaceFiles: { ...(resolved.seedFiles ?? {}) },
       changes: [],
     };
     this.sessions.set(session.id, session);
@@ -112,14 +130,14 @@ export class SessionManager {
     this.persist(session);
   }
 
-  addSnapshot(sessionId: string, file: string, content: string): void {
+  addSnapshot(sessionId: string, file: string, content: string, exists = true): void {
     const session = this.sessions.get(sessionId);
     if (!session) throw new Error(`Session not found: ${sessionId}`);
 
     // Only store one snapshot per file (the original)
     const existing = session.snapshots.find((s) => s.path === file);
     if (!existing) {
-      session.snapshots.push({ path: file, content, timestamp: Date.now() });
+      session.snapshots.push({ path: file, content, exists, timestamp: Date.now() });
       this.persist(session);
     }
   }
@@ -133,10 +151,76 @@ export class SessionManager {
     this.persist(session);
   }
 
+  setWorkspaceFile(sessionId: string, file: string, content: string): void {
+    const session = this.sessions.get(sessionId);
+    if (!session) throw new Error(`Session not found: ${sessionId}`);
+
+    session.workspaceFiles[file] = content;
+    session.updatedAt = Date.now();
+    this.persist(session);
+  }
+
+  removeWorkspaceFile(sessionId: string, file: string): void {
+    const session = this.sessions.get(sessionId);
+    if (!session) throw new Error(`Session not found: ${sessionId}`);
+
+    delete session.workspaceFiles[file];
+    session.updatedAt = Date.now();
+    this.persist(session);
+  }
+
+  getWorkspaceFiles(sessionId: string): Record<string, string> {
+    const session = this.sessions.get(sessionId);
+    if (!session) throw new Error(`Session not found: ${sessionId}`);
+    return { ...session.workspaceFiles };
+  }
+
   getSnapshots(sessionId: string): FileSnapshot[] {
     const session = this.sessions.get(sessionId);
     if (!session) throw new Error(`Session not found: ${sessionId}`);
     return session.snapshots;
+  }
+
+  getOriginalSnapshot(file: string): FileSnapshot | null {
+    let earliest: FileSnapshot | null = null;
+    for (const session of this.sessions.values()) {
+      for (const snapshot of session.snapshots) {
+        if (snapshot.path !== file) continue;
+        if (!earliest || snapshot.timestamp < earliest.timestamp) {
+          earliest = snapshot;
+        }
+      }
+    }
+    return earliest;
+  }
+
+  listTrackedFiles(): string[] {
+    const files = new Set<string>();
+    for (const session of this.sessions.values()) {
+      for (const snapshot of session.snapshots) {
+        files.add(snapshot.path);
+      }
+      for (const file of Object.keys(session.workspaceFiles)) {
+        files.add(file);
+      }
+    }
+    return Array.from(files).sort();
+  }
+
+  revertToSnapshots(sessionId: string): void {
+    const session = this.sessions.get(sessionId);
+    if (!session) throw new Error(`Session not found: ${sessionId}`);
+
+    for (const snapshot of session.snapshots) {
+      if (snapshot.exists) {
+        session.workspaceFiles[snapshot.path] = snapshot.content;
+      } else {
+        delete session.workspaceFiles[snapshot.path];
+      }
+    }
+    session.changes = [];
+    session.updatedAt = Date.now();
+    this.persist(session);
   }
 
   private persist(session: Session): void {
@@ -153,6 +237,13 @@ export class SessionManager {
         const raw = readFileSync(join(this.storageDir, file), 'utf-8');
         const session = JSON.parse(raw) as Session;
         session.previewUrl = session.previewUrl || '/';
+        session.baseSessionId = session.baseSessionId ?? null;
+        session.gitBranch = session.gitBranch ?? null;
+        session.workspaceFiles = session.workspaceFiles ?? {};
+        session.snapshots = session.snapshots.map((snapshot) => ({
+          ...snapshot,
+          exists: snapshot.exists ?? true,
+        }));
         this.sessions.set(session.id, session);
       } catch {
         // Skip corrupted session files

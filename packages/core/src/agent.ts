@@ -176,6 +176,44 @@ export class DenshobatoAgent {
     return { response: assistantMessage, patches };
   }
 
+  restoreSessionWorkspace(sessionId: string): string[] {
+    const session = this.sessionManager.getSession(sessionId);
+    if (!session) throw new Error(`Session not found: ${sessionId}`);
+
+    const restored: string[] = [];
+    for (const file of this.sessionManager.listTrackedFiles()) {
+      const hasSessionVersion = Object.prototype.hasOwnProperty.call(session.workspaceFiles, file);
+      if (hasSessionVersion) {
+        const content = session.workspaceFiles[file];
+        const current = this.fileOps.fileExists(file) ? this.fileOps.readFile(file) : null;
+        if (current !== content) {
+          this.fileOps.writeFile(file, content);
+          restored.push(file);
+        }
+        continue;
+      }
+
+      const original = this.sessionManager.getOriginalSnapshot(file);
+      if (!original) continue;
+
+      if (!original.exists) {
+        if (this.fileOps.fileExists(file)) {
+          this.fileOps.deleteFile(file);
+          restored.push(file);
+        }
+        continue;
+      }
+
+      const current = this.fileOps.fileExists(file) ? this.fileOps.readFile(file) : null;
+      if (current !== original.content) {
+        this.fileOps.writeFile(file, original.content);
+        restored.push(file);
+      }
+    }
+
+    return restored;
+  }
+
   private createClient(apiKeyOverride?: string): Anthropic {
     const apiKey = apiKeyOverride?.trim() || this.config.apiKey || process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
@@ -235,22 +273,22 @@ export class DenshobatoAgent {
           return { content };
         }
         case 'write_file': {
-          // Snapshot original before first edit
-          if (this.fileOps.fileExists(input.path)) {
-            const original = this.fileOps.readFile(input.path);
-            this.sessionManager.addSnapshot(sessionId, input.path, original);
-          }
+          const fileExists = this.fileOps.fileExists(input.path);
+          const original = fileExists ? this.fileOps.readFile(input.path) : '';
+          this.sessionManager.addSnapshot(sessionId, input.path, original, fileExists);
           const patch = this.fileOps.writeFile(input.path, input.content);
           patches.push(patch);
+          this.sessionManager.setWorkspaceFile(sessionId, patch.file, patch.after);
           this.sessionManager.addChange(sessionId, patch.file, patch.patch);
           return { content: `File written: ${input.path}` };
         }
         case 'edit_file': {
           // Snapshot original before first edit
           const original = this.fileOps.readFile(input.path);
-          this.sessionManager.addSnapshot(sessionId, input.path, original);
+          this.sessionManager.addSnapshot(sessionId, input.path, original, true);
           const patch = this.fileOps.editFile(input.path, input.search, input.replace);
           patches.push(patch);
+          this.sessionManager.setWorkspaceFile(sessionId, patch.file, patch.after);
           this.sessionManager.addChange(sessionId, patch.file, patch.patch);
           return { content: `File edited: ${input.path}` };
         }

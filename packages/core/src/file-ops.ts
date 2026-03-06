@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'node:fs';
 import { dirname, resolve, relative } from 'node:path';
 import { createPatch } from 'diff';
 import { glob } from 'glob';
@@ -83,6 +83,15 @@ export class FileOperations {
 
   fileExists(filePath: string): boolean {
     return existsSync(this.resolvePath(filePath));
+  }
+
+  deleteFile(filePath: string): void {
+    if (!this.isEditable(filePath)) {
+      throw new Error(`File is not in an editable directory: ${filePath}`);
+    }
+    const resolved = this.resolvePath(filePath);
+    if (!existsSync(resolved)) return;
+    unlinkSync(resolved);
   }
 
   generateDiff(filePath: string, oldContent: string, newContent: string): string {

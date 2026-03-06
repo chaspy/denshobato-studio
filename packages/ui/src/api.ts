@@ -24,6 +24,8 @@ export interface SessionSummary {
   id: string;
   title: string | null;
   previewUrl?: string;
+  baseSessionId?: string | null;
+  gitBranch?: string | null;
   createdAt: number;
   updatedAt: number;
   messageCount: number;
@@ -35,6 +37,8 @@ export interface SessionDetail {
   createdAt: number;
   updatedAt: number;
   previewUrl: string;
+  baseSessionId: string | null;
+  gitBranch: string | null;
   messages: Array<{
     role: 'user' | 'assistant';
     content: string;
@@ -42,6 +46,7 @@ export interface SessionDetail {
     context?: { file?: string; line?: number; component?: string };
     preferences?: ChatPreferences;
   }>;
+  workspaceFiles: Record<string, string>;
   changes: Array<{ file: string; patch: string; timestamp: number }>;
 }
 
@@ -77,6 +82,7 @@ export const api = {
   chat(
     message: string,
     sessionId?: string,
+    baseSessionId?: string,
     context?: { file?: string; line?: number; component?: string },
     preferences?: ChatPreferences,
     apiKey?: string,
@@ -84,7 +90,7 @@ export const api = {
   ): Promise<ChatResponse> {
     return fetchJson('/chat', {
       method: 'POST',
-      body: JSON.stringify({ message, sessionId, context, preferences, previewUrl }),
+      body: JSON.stringify({ message, sessionId, baseSessionId, context, preferences, previewUrl }),
       apiKey,
     });
   },
@@ -95,6 +101,10 @@ export const api = {
 
   getSession(id: string): Promise<SessionDetail> {
     return fetchJson(`/session/${id}`);
+  },
+
+  activateSession(id: string): Promise<SessionDetail> {
+    return fetchJson(`/session/${id}/activate`, { method: 'POST' });
   },
 
   updateSessionPreview(sessionId: string, previewUrl: string): Promise<{ previewUrl: string }> {

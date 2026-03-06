@@ -17,8 +17,11 @@ describe('SessionManager', () => {
       const session = manager.createSession();
       expect(session.id).toBeDefined();
       expect(session.previewUrl).toBe('/');
+      expect(session.baseSessionId).toBeNull();
+      expect(session.gitBranch).toBeNull();
       expect(session.messages).toEqual([]);
       expect(session.snapshots).toEqual([]);
+      expect(session.workspaceFiles).toEqual({});
     });
 
     it('stores preview url per session', () => {
@@ -26,6 +29,24 @@ describe('SessionManager', () => {
       expect(session.previewUrl).toBe('/todos');
       manager.setPreviewUrl(session.id, '/about');
       expect(manager.getSession(session.id)?.previewUrl).toBe('/about');
+    });
+
+    it('creates a session from an existing workspace state', () => {
+      const parent = manager.createSession({
+        previewUrl: '/todos',
+        gitBranch: 'main',
+        seedFiles: { 'src/App.tsx': '<div>draft</div>' },
+      });
+      const child = manager.createSession({
+        previewUrl: '/about',
+        baseSessionId: parent.id,
+        gitBranch: 'feature/demo',
+        seedFiles: manager.getWorkspaceFiles(parent.id),
+      });
+
+      expect(child.baseSessionId).toBe(parent.id);
+      expect(child.gitBranch).toBe('feature/demo');
+      expect(child.workspaceFiles).toEqual({ 'src/App.tsx': '<div>draft</div>' });
     });
 
     it('retrieves a session by id', () => {
@@ -54,11 +75,22 @@ describe('SessionManager', () => {
 
     it('adds snapshots (only first per file)', () => {
       const session = manager.createSession();
-      manager.addSnapshot(session.id, 'src/app.tsx', 'original');
-      manager.addSnapshot(session.id, 'src/app.tsx', 'modified');
+      manager.addSnapshot(session.id, 'src/app.tsx', 'original', true);
+      manager.addSnapshot(session.id, 'src/app.tsx', 'modified', true);
       const snapshots = manager.getSnapshots(session.id);
       expect(snapshots).toHaveLength(1);
       expect(snapshots[0].content).toBe('original');
+      expect(snapshots[0].exists).toBe(true);
+    });
+
+    it('returns the earliest snapshot as the original file baseline', () => {
+      const base = manager.createSession();
+      manager.addSnapshot(base.id, 'src/app.tsx', 'base', true);
+
+      const child = manager.createSession();
+      manager.addSnapshot(child.id, 'src/app.tsx', 'child-start', true);
+
+      expect(manager.getOriginalSnapshot('src/app.tsx')?.content).toBe('base');
     });
 
     it('lists sessions sorted by updatedAt', () => {

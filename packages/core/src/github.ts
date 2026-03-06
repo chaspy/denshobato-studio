@@ -115,6 +115,15 @@ export class GitHubIntegration {
     return [...status.modified, ...status.not_added, ...status.created];
   }
 
+  async getCurrentBranch(): Promise<string | null> {
+    try {
+      const branch = await this.git.branchLocal();
+      return branch.current || null;
+    } catch {
+      return null;
+    }
+  }
+
   async getDiff(): Promise<string> {
     return this.git.diff();
   }

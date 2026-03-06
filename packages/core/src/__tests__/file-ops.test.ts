@@ -72,4 +72,9 @@ describe('FileOperations', () => {
     fileOps.writeFile('src/components/Button.tsx', '<button>Click</button>');
     expect(existsSync(join(tempDir, 'src', 'components', 'Button.tsx'))).toBe(true);
   });
+
+  it('deletes a file inside editable directories', () => {
+    fileOps.deleteFile('src/style.css');
+    expect(existsSync(join(tempDir, 'src', 'style.css'))).toBe(false);
+  });
 });
