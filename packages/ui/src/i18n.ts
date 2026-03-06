@@ -5,7 +5,7 @@ export const LANGUAGE_STORAGE_KEY = 'denshobato:language';
 export const THINKING_MODE_STORAGE_KEY = 'denshobato:thinking-mode';
 export const API_KEY_STORAGE_KEY = 'denshobato:api-key';
 export const PREVIEW_PORT_STORAGE_KEY = 'denshobato:preview-port';
-export const DEFAULT_PREVIEW_PORT = '5173';
+export const DEFAULT_PREVIEW_PORT = '39483';
 
 type Translator = {
   appTitle: string;
@@ -102,7 +102,7 @@ const translations: Record<Language, Translator> = {
     apiKeyPlaceholder: 'sk-ant-...',
     apiKeyHelp: 'Stored locally in this browser and sent only when chat requests are made.',
     previewPortLabel: 'Default Preview Port',
-    previewPortPlaceholder: '5173',
+    previewPortPlaceholder: '39483',
     previewPortHelp: 'Applied automatically when you enter localhost without an explicit port.',
     apiKeyRequiredTitle: 'API key required',
     apiKeyRequiredDescription: 'Open settings and add your Anthropic API key before starting a session.',
@@ -189,7 +189,7 @@ const translations: Record<Language, Translator> = {
     apiKeyPlaceholder: 'sk-ant-...',
     apiKeyHelp: 'このブラウザのローカルに保存され、チャット送信時だけ利用されます。',
     previewPortLabel: 'プレビュー既定ポート',
-    previewPortPlaceholder: '5173',
+    previewPortPlaceholder: '39483',
     previewPortHelp: 'localhost にポートが含まれない場合、この番号を自動で補完します。',
     apiKeyRequiredTitle: 'API キーが必要です',
     apiKeyRequiredDescription: 'セッションを始める前に設定画面から Anthropic API Key を入力してください。',

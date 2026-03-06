@@ -8,7 +8,7 @@ describe('store', () => {
       apiKey: 'sk-ant-test',
       language: 'en',
       thinkingMode: 'standard',
-      previewPort: '5173',
+      previewPort: '39483',
       sessionId: null,
       draftBaseSessionId: null,
       sessions: [],
