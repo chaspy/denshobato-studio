@@ -41,6 +41,7 @@ export async function createServer(options: ServerOptions): Promise<Express> {
   app.post('/__denshobato/chat', async (req, res) => {
     try {
       const { message, sessionId, context, preferences } = req.body;
+      const apiKeyHeader = req.header('x-denshobato-api-key')?.trim();
       const sm = agent.getSessionManager();
 
       let sid = sessionId;
@@ -49,7 +50,7 @@ export async function createServer(options: ServerOptions): Promise<Express> {
         sid = session.id;
       }
 
-      const result = await agent.chat(sid, message, context, preferences);
+      const result = await agent.chat(sid, message, context, preferences, apiKeyHeader);
       res.json({ sessionId: sid, response: result.response, patches: result.patches });
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);

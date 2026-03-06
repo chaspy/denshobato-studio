@@ -4,8 +4,9 @@ import { studioStyles as s } from '../styles.js';
 import { getCopy } from '../i18n.js';
 
 export function SessionList() {
-  const { sessions, loadSessions, createSession, openSession, language } = useStore();
+  const { sessions, loadSessions, createSession, openSession, language, apiKey, setSettingsOpen } = useStore();
   const copy = getCopy(language);
+  const hasApiKey = apiKey.trim().length > 0;
 
   useEffect(() => {
     loadSessions();
@@ -14,11 +15,21 @@ export function SessionList() {
   return (
     <>
       <div style={s.header}>
-        <span style={s.logo}>{copy.appTitle}</span>
+        <span style={s.sectionTitle}>{copy.sessionsTitle}</span>
         <button style={s.btnAccent} onClick={createSession}>
           {copy.newSession}
         </button>
       </div>
+
+      {!hasApiKey && (
+        <div style={s.setupCard}>
+          <div style={s.setupCardTitle}>{copy.apiKeyRequiredTitle}</div>
+          <div style={s.setupCardDescription}>{copy.apiKeyRequiredDescription}</div>
+          <button style={s.btnAccent} onClick={() => setSettingsOpen(true)}>
+            {copy.openSettings}
+          </button>
+        </div>
+      )}
 
       {sessions.length === 0 ? (
         <div style={s.emptyState}>

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 export interface SessionPreferences {
@@ -118,7 +118,6 @@ export class SessionManager {
 
   private loadFromDisk(): void {
     if (!this.storageDir || !existsSync(this.storageDir)) return;
-    const { readdirSync } = require('node:fs') as typeof import('node:fs');
     const files = readdirSync(this.storageDir).filter((f: string) => f.endsWith('.json'));
     for (const file of files) {
       try {

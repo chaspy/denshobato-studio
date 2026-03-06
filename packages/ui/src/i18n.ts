@@ -3,15 +3,27 @@ export type ThinkingMode = 'standard' | 'deep';
 
 export const LANGUAGE_STORAGE_KEY = 'denshobato:language';
 export const THINKING_MODE_STORAGE_KEY = 'denshobato:thinking-mode';
+export const API_KEY_STORAGE_KEY = 'denshobato:api-key';
 
 type Translator = {
   appTitle: string;
-  modeLabel: string;
-  modeDescription: Record<ThinkingMode, string>;
   modeBadgeLabel: Record<ThinkingMode, string>;
   modeToggleLabel: string;
+  modeInfoTitle: string;
+  modeInfoDescription: Record<ThinkingMode, string>;
   languageLabel: string;
   languageName: Record<Language, string>;
+  settings: string;
+  settingsTitle: string;
+  settingsDescription: string;
+  saveSettings: string;
+  apiKeyLabel: string;
+  apiKeyPlaceholder: string;
+  apiKeyHelp: string;
+  apiKeyRequiredTitle: string;
+  apiKeyRequiredDescription: string;
+  openSettings: string;
+  sessionsTitle: string;
   newSession: string;
   newSessionTitle: string;
   sessionLabel: (id: string) => string;
@@ -41,6 +53,14 @@ type Translator = {
   send: string;
   thinking: Record<ThinkingMode, string>;
   revert: string;
+  directInstructionCta: string;
+  directInstructionHint: string;
+  directInstructionDisabled: string;
+  selectorActiveCta: string;
+  selectorSelectedCta: string;
+  info: string;
+  aiOverlayLabel: string;
+  chatLockedPlaceholder: string;
   noSessionsYet: string;
   sessionMeta: (messageCount: number, changeCount: number, updatedAt: number) => string;
   messageCount: (count: number) => string;
@@ -51,21 +71,32 @@ type Translator = {
 const translations: Record<Language, Translator> = {
   en: {
     appTitle: 'Denshobato Studio',
-    modeLabel: 'Thinking Mode',
-    modeDescription: {
-      standard: 'Standard keeps responses fast for routine edits.',
-      deep: 'Deep Think spends more effort on exploration, edge cases, and validation.',
-    },
     modeBadgeLabel: {
       standard: 'Standard',
       deep: 'Deep Think',
     },
     modeToggleLabel: 'Execution mode',
+    modeInfoTitle: 'Deep Think',
+    modeInfoDescription: {
+      standard: 'Standard keeps iteration fast.',
+      deep: 'Deep Think spends extra effort on exploration, edge cases, and validation before it responds.',
+    },
     languageLabel: 'Language',
     languageName: {
       en: 'English',
       ja: 'Japanese',
     },
+    settings: 'Settings',
+    settingsTitle: 'Settings',
+    settingsDescription: 'Configure language and future workspace preferences.',
+    saveSettings: 'Save settings',
+    apiKeyLabel: 'Anthropic API Key',
+    apiKeyPlaceholder: 'sk-ant-...',
+    apiKeyHelp: 'Stored locally in this browser and sent only when chat requests are made.',
+    apiKeyRequiredTitle: 'API key required',
+    apiKeyRequiredDescription: 'Open settings and add your Anthropic API key before starting a session.',
+    openSettings: 'Open settings',
+    sessionsTitle: 'Sessions',
     newSession: '+ New Session',
     newSessionTitle: 'New Session',
     sessionLabel: (id) => `Session ${id}`,
@@ -98,6 +129,14 @@ const translations: Record<Language, Translator> = {
       deep: 'Deep thinking...',
     },
     revert: 'Revert',
+    directInstructionCta: 'Direct the UI visually',
+    directInstructionHint: 'Click this, then pick any element in the preview to tell Denshobato what to change.',
+    directInstructionDisabled: 'Set your API key in settings before direct UI instructions are available.',
+    selectorActiveCta: 'Selecting UI element...',
+    selectorSelectedCta: 'Element selected. Describe the change in chat.',
+    info: 'Info',
+    aiOverlayLabel: 'AI UI Editing Overlay',
+    chatLockedPlaceholder: 'Add your API key in settings to start chatting.',
     noSessionsYet: 'No sessions yet',
     sessionMeta: (messageCount, changeCount, updatedAt) =>
       `${messageCount} messages · ${changeCount} changes · ${formatDate('en', updatedAt)}`,
@@ -107,21 +146,32 @@ const translations: Record<Language, Translator> = {
   },
   ja: {
     appTitle: 'Denshobato Studio',
-    modeLabel: '思考モード',
-    modeDescription: {
-      standard: 'Standard は通常の編集を素早く進めます。',
-      deep: 'Deep Think は調査、抜け漏れ確認、検証により多くの時間を使います。',
-    },
     modeBadgeLabel: {
       standard: 'Standard',
       deep: 'Deep Think',
     },
     modeToggleLabel: '実行モード',
+    modeInfoTitle: 'Deep Think',
+    modeInfoDescription: {
+      standard: 'Standard は素早い反復向けです。',
+      deep: 'Deep Think は調査、抜け漏れ確認、検証により多くの時間を使ってから応答します。',
+    },
     languageLabel: '表示言語',
     languageName: {
       en: 'English',
       ja: '日本語',
     },
+    settings: '設定',
+    settingsTitle: '設定',
+    settingsDescription: '表示言語などのワークスペース設定を変更します。',
+    saveSettings: '設定を保存',
+    apiKeyLabel: 'Anthropic API Key',
+    apiKeyPlaceholder: 'sk-ant-...',
+    apiKeyHelp: 'このブラウザのローカルに保存され、チャット送信時だけ利用されます。',
+    apiKeyRequiredTitle: 'API キーが必要です',
+    apiKeyRequiredDescription: 'セッションを始める前に設定画面から Anthropic API Key を入力してください。',
+    openSettings: '設定を開く',
+    sessionsTitle: 'セッション',
     newSession: '+ 新規セッション',
     newSessionTitle: '新規セッション',
     sessionLabel: (id) => `Session ${id}`,
@@ -154,6 +204,14 @@ const translations: Record<Language, Translator> = {
       deep: '深く考え中...',
     },
     revert: '元に戻す',
+    directInstructionCta: 'UI で直接指示する！',
+    directInstructionHint: '押したあとにプレビュー上の要素をクリックすると、どこを直すかそのまま指示できます。',
+    directInstructionDisabled: '直接指示を使うには、先に設定画面で API キーを入力してください。',
+    selectorActiveCta: '要素を選択中...',
+    selectorSelectedCta: '要素を選択しました。チャットで変更内容を入力してください。',
+    info: 'Info',
+    aiOverlayLabel: 'AI UI Editing Overlay',
+    chatLockedPlaceholder: 'チャットを始めるには設定画面で API キーを入力してください。',
     noSessionsYet: 'まだセッションがありません',
     sessionMeta: (messageCount, changeCount, updatedAt) =>
       `${messageCount}件のメッセージ · ${changeCount}件の変更 · ${formatDate('ja', updatedAt)}`,
@@ -194,12 +252,24 @@ export function getInitialThinkingMode(): ThinkingMode {
   return normalizeThinkingMode(readStoredValue(THINKING_MODE_STORAGE_KEY));
 }
 
+export function getInitialApiKey(): string {
+  return readStoredValue(API_KEY_STORAGE_KEY) ?? '';
+}
+
 export function persistLanguage(language: Language): void {
   writeStoredValue(LANGUAGE_STORAGE_KEY, language);
 }
 
 export function persistThinkingMode(mode: ThinkingMode): void {
   writeStoredValue(THINKING_MODE_STORAGE_KEY, mode);
+}
+
+export function persistApiKey(apiKey: string): void {
+  if (apiKey.trim().length === 0) {
+    removeStoredValue(API_KEY_STORAGE_KEY);
+    return;
+  }
+  writeStoredValue(API_KEY_STORAGE_KEY, apiKey.trim());
 }
 
 export function formatDate(language: Language, value: number): string {
@@ -219,6 +289,15 @@ function writeStoredValue(key: string, value: string): void {
   if (typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(key, value);
+  } catch {
+    // Ignore storage write failures.
+  }
+}
+
+function removeStoredValue(key: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem(key);
   } catch {
     // Ignore storage write failures.
   }

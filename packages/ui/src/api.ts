@@ -1,5 +1,9 @@
 const API_BASE = '/__denshobato';
 
+interface ApiRequestInit extends RequestInit {
+  apiKey?: string;
+}
+
 export interface ChatPreferences {
   responseLanguage?: 'en' | 'ja';
   thinkingMode?: 'standard' | 'deep';
@@ -44,10 +48,16 @@ export interface PRResult {
   branchName: string;
 }
 
-async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
+async function fetchJson<T>(path: string, options?: ApiRequestInit): Promise<T> {
+  const headers = new Headers(options?.headers);
+  headers.set('Content-Type', 'application/json');
+  if (options?.apiKey) {
+    headers.set('x-denshobato-api-key', options.apiKey);
+  }
+
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
     ...options,
+    headers,
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
@@ -66,10 +76,12 @@ export const api = {
     sessionId?: string,
     context?: { file?: string; line?: number; component?: string },
     preferences?: ChatPreferences,
+    apiKey?: string,
   ): Promise<ChatResponse> {
     return fetchJson('/chat', {
       method: 'POST',
       body: JSON.stringify({ message, sessionId, context, preferences }),
+      apiKey,
     });
   },
 

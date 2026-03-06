@@ -6,12 +6,15 @@ import { getCopy } from '../i18n.js';
 export function ChatPane() {
   const {
     messages, loading, error, selectedElement, sessionId,
-    sendMessage, clearError, setView, toggleSelector, selectorActive,
+    sendMessage, clearError, setView,
     clearSelectedElement, revertMessage, setPRDialogOpen, language, thinkingMode,
+    setThinkingMode, apiKey, setSettingsOpen,
   } = useStore();
   const copy = getCopy(language);
+  const hasApiKey = apiKey.trim().length > 0;
 
   const [input, setInput] = useState('');
+  const [showModeInfo, setShowModeInfo] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -20,12 +23,17 @@ export function ChatPane() {
   }, [messages, loading]);
 
   useEffect(() => {
+    if (!hasApiKey) return;
     inputRef.current?.focus();
-  }, [selectedElement]);
+  }, [selectedElement, hasApiKey]);
 
   const handleSend = () => {
     const trimmed = input.trim();
     if (!trimmed || loading) return;
+    if (!hasApiKey) {
+      setSettingsOpen(true);
+      return;
+    }
     setInput('');
     sendMessage(trimmed);
   };
@@ -135,28 +143,59 @@ export function ChatPane() {
       )}
 
       {/* Input */}
+      {!hasApiKey && (
+        <div style={s.lockedNotice}>
+          <div style={s.lockedNoticeTitle}>{copy.apiKeyRequiredTitle}</div>
+          <div style={s.lockedNoticeDescription}>{copy.apiKeyRequiredDescription}</div>
+          <button style={s.btnAccent} onClick={() => setSettingsOpen(true)}>
+            {copy.openSettings}
+          </button>
+        </div>
+      )}
+
       <div style={s.inputArea}>
-        <button
-          style={{
-            ...s.selectorBtn,
-            background: selectorActive ? colors.accent : 'transparent',
-            color: selectorActive ? colors.white : colors.textMuted,
-          }}
-          onClick={toggleSelector}
-          title={copy.selectorButton}
-        >
-          &#x2295;
-        </button>
         <textarea
           ref={inputRef}
           style={s.input}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={selectedElement ? copy.describeSelectedElement : copy.describeChange}
-          disabled={loading}
+          placeholder={
+            !hasApiKey
+              ? copy.chatLockedPlaceholder
+              : selectedElement
+                ? copy.describeSelectedElement
+                : copy.describeChange
+          }
+          disabled={loading || !hasApiKey}
           rows={1}
         />
+        <button
+          type="button"
+          style={thinkingMode === 'deep' ? s.modeIconBtnActive : s.modeIconBtn}
+          onClick={() => setThinkingMode(thinkingMode === 'deep' ? 'standard' : 'deep')}
+          title={copy.modeInfoTitle}
+          aria-pressed={thinkingMode === 'deep'}
+        >
+          &#129504;
+        </button>
+        <div style={s.infoWrap}>
+          <button
+            type="button"
+            style={s.modeInfoBtn}
+            onClick={() => setShowModeInfo((value) => !value)}
+            title={copy.info}
+            aria-pressed={showModeInfo}
+          >
+            i
+          </button>
+          {showModeInfo && (
+            <div style={s.modeInfoPopover}>
+              <div style={s.modeInfoPopoverTitle}>{copy.modeInfoTitle}</div>
+              <div style={s.modeInfoPopoverBody}>{copy.modeInfoDescription[thinkingMode]}</div>
+            </div>
+          )}
+        </div>
         <button
           style={{ ...s.sendBtn, opacity: loading || !input.trim() ? 0.5 : 1 }}
           onClick={handleSend}

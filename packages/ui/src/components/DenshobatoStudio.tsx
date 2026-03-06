@@ -6,9 +6,10 @@ import { ChatPane } from './ChatPane.js';
 import { PreviewPane } from './PreviewPane.js';
 import { PRDialog } from './PRDialog.js';
 import { ModeBar } from './ModeBar.js';
+import { SettingsDialog } from './SettingsDialog.js';
 
 export function DenshobatoStudio() {
-  const { view, prDialogOpen } = useStore();
+  const { view, prDialogOpen, settingsOpen } = useStore();
 
   return (
     <div style={s.root}>
@@ -23,6 +24,7 @@ export function DenshobatoStudio() {
 
       {/* PR Dialog */}
       {prDialogOpen && <PRDialog />}
+      {settingsOpen && <SettingsDialog />}
     </div>
   );
 }

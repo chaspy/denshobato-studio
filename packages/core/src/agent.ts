@@ -64,16 +64,12 @@ const TOOLS: Anthropic.Tool[] = [
 ];
 
 export class DenshobatoAgent {
-  private client: Anthropic;
   private fileOps: FileOperations;
   private sessionManager: SessionManager;
   private config: DenshobatoConfig;
 
   constructor(config: DenshobatoConfig, projectDir: string) {
     this.config = config;
-    this.client = new Anthropic({
-      apiKey: config.apiKey || process.env.ANTHROPIC_API_KEY,
-    });
     this.fileOps = new FileOperations(
       projectDir,
       config.editableDirectories,
@@ -98,9 +94,11 @@ export class DenshobatoAgent {
     userMessage: string,
     context?: { file?: string; line?: number; component?: string },
     preferences?: SessionPreferences,
+    apiKeyOverride?: string,
   ): Promise<{ response: string; patches: FilePatch[] }> {
     const session = this.sessionManager.getSession(sessionId);
     if (!session) throw new Error(`Session not found: ${sessionId}`);
+    const client = this.createClient(apiKeyOverride);
 
     // Add user message to session
     this.sessionManager.addMessage(sessionId, {
@@ -120,7 +118,7 @@ export class DenshobatoAgent {
     const patches: FilePatch[] = [];
 
     // Tool use loop
-    let response = await this.client.messages.create({
+    let response = await client.messages.create({
       model: this.config.model,
       max_tokens: this.config.maxTokens,
       system: systemPrompt,
@@ -154,7 +152,7 @@ export class DenshobatoAgent {
       messages.push({ role: 'assistant', content: response.content });
       messages.push({ role: 'user', content: toolResults });
 
-      response = await this.client.messages.create({
+      response = await client.messages.create({
         model: this.config.model,
         max_tokens: this.config.maxTokens,
         system: systemPrompt,
@@ -176,6 +174,14 @@ export class DenshobatoAgent {
     });
 
     return { response: assistantMessage, patches };
+  }
+
+  private createClient(apiKeyOverride?: string): Anthropic {
+    const apiKey = apiKeyOverride?.trim() || this.config.apiKey || process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      throw new Error('Anthropic API key is not configured');
+    }
+    return new Anthropic({ apiKey });
   }
 
   private buildSystemPrompt(context?: {

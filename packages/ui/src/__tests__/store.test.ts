@@ -5,6 +5,7 @@ describe('store', () => {
   beforeEach(() => {
     useStore.setState({
       view: 'sessions',
+      apiKey: 'sk-ant-test',
       language: 'en',
       thinkingMode: 'standard',
       sessionId: null,
@@ -14,6 +15,7 @@ describe('store', () => {
       selectorActive: false,
       selectedElement: null,
       prDialogOpen: false,
+      settingsOpen: false,
       loading: false,
       error: null,
     });
@@ -22,6 +24,11 @@ describe('store', () => {
   it('switches view', () => {
     useStore.getState().setView('chat');
     expect(useStore.getState().view).toBe('chat');
+  });
+
+  it('updates api key', () => {
+    useStore.getState().setApiKey('sk-ant-next');
+    expect(useStore.getState().apiKey).toBe('sk-ant-next');
   });
 
   it('updates language', () => {
@@ -39,6 +46,13 @@ describe('store', () => {
     expect(useStore.getState().view).toBe('chat');
     expect(useStore.getState().sessionId).toBeNull();
     expect(useStore.getState().messages).toEqual([]);
+  });
+
+  it('opens settings instead of creating a session when api key is missing', () => {
+    useStore.setState({ apiKey: '', settingsOpen: false });
+    useStore.getState().createSession();
+    expect(useStore.getState().view).toBe('sessions');
+    expect(useStore.getState().settingsOpen).toBe(true);
   });
 
   it('toggles selector mode', () => {

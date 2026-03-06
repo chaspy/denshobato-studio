@@ -1,8 +1,10 @@
 import { create } from 'zustand';
 import { api, type ChatResponse } from './api.js';
 import {
+  getInitialApiKey,
   getInitialLanguage,
   getInitialThinkingMode,
+  persistApiKey,
   persistLanguage,
   persistThinkingMode,
   type Language,
@@ -38,6 +40,7 @@ interface DenshobatoState {
   view: 'sessions' | 'chat';
 
   // Preferences
+  apiKey: string;
   language: Language;
   thinkingMode: ThinkingMode;
 
@@ -55,6 +58,7 @@ interface DenshobatoState {
 
   // PR dialog
   prDialogOpen: boolean;
+  settingsOpen: boolean;
 
   // Loading / error
   loading: boolean;
@@ -62,6 +66,7 @@ interface DenshobatoState {
 
   // Actions
   setView: (view: 'sessions' | 'chat') => void;
+  setApiKey: (apiKey: string) => void;
   setLanguage: (language: Language) => void;
   setThinkingMode: (mode: ThinkingMode) => void;
   setPreviewUrl: (url: string) => void;
@@ -74,6 +79,7 @@ interface DenshobatoState {
   sendMessage: (message: string) => Promise<void>;
   revertMessage: (messageId: string) => Promise<void>;
   setPRDialogOpen: (open: boolean) => void;
+  setSettingsOpen: (open: boolean) => void;
   createPR: (opts: { title: string; body: string; branchName: string }) => Promise<string>;
   clearError: () => void;
 }
@@ -85,6 +91,7 @@ function genId(): string {
 
 export const useStore = create<DenshobatoState>((set, get) => ({
   view: 'sessions',
+  apiKey: getInitialApiKey(),
   language: getInitialLanguage(),
   thinkingMode: getInitialThinkingMode(),
   sessionId: null,
@@ -94,10 +101,16 @@ export const useStore = create<DenshobatoState>((set, get) => ({
   selectorActive: false,
   selectedElement: null,
   prDialogOpen: false,
+  settingsOpen: !getInitialApiKey(),
   loading: false,
   error: null,
 
   setView: (view) => set({ view }),
+
+  setApiKey: (apiKey) => {
+    persistApiKey(apiKey);
+    set({ apiKey: apiKey.trim() });
+  },
 
   setLanguage: (language) => {
     persistLanguage(language);
@@ -121,6 +134,10 @@ export const useStore = create<DenshobatoState>((set, get) => ({
   },
 
   createSession: () => {
+    if (!get().apiKey) {
+      set({ settingsOpen: true });
+      return;
+    }
     // Session is created on first message send
     set({ view: 'chat', sessionId: null, messages: [], selectedElement: null });
   },
@@ -151,7 +168,11 @@ export const useStore = create<DenshobatoState>((set, get) => ({
   toggleSelector: () => set((s) => ({ selectorActive: !s.selectorActive })),
 
   sendMessage: async (message) => {
-    const { sessionId, selectedElement, language, thinkingMode } = get();
+    const { sessionId, selectedElement, language, thinkingMode, apiKey } = get();
+    if (!apiKey) {
+      set({ settingsOpen: true });
+      return;
+    }
 
     const userMsg: Message = {
       id: genId(),
@@ -176,7 +197,7 @@ export const useStore = create<DenshobatoState>((set, get) => ({
       const result: ChatResponse = await api.chat(message, sessionId ?? undefined, context, {
         responseLanguage: language,
         thinkingMode,
-      });
+      }, apiKey);
 
       const assistantMsg: Message = {
         id: genId(),
@@ -209,6 +230,8 @@ export const useStore = create<DenshobatoState>((set, get) => ({
   },
 
   setPRDialogOpen: (open) => set({ prDialogOpen: open }),
+
+  setSettingsOpen: (open) => set({ settingsOpen: open }),
 
   createPR: async (opts) => {
     set({ loading: true, error: null });

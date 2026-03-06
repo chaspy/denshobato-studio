@@ -4,10 +4,21 @@ import { studioStyles as s, colors } from '../styles.js';
 import { getCopy } from '../i18n.js';
 
 export function PreviewPane() {
-  const { previewUrl, setPreviewUrl, selectorActive, selectElement, toggleSelector, language } = useStore();
+  const {
+    previewUrl,
+    setPreviewUrl,
+    selectorActive,
+    selectedElement,
+    selectElement,
+    toggleSelector,
+    language,
+    apiKey,
+    setSettingsOpen,
+  } = useStore();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [urlInput, setUrlInput] = useState(previewUrl);
   const copy = getCopy(language);
+  const hasApiKey = apiKey.trim().length > 0;
 
   useEffect(() => {
     setUrlInput(previewUrl);
@@ -23,6 +34,14 @@ export function PreviewPane() {
   const handleUrlSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     navigateTo(urlInput);
+  };
+
+  const handleDirectInstruction = () => {
+    if (!hasApiKey) {
+      setSettingsOpen(true);
+      return;
+    }
+    toggleSelector();
   };
 
   const handleSelectorClick = useCallback(
@@ -172,6 +191,26 @@ export function PreviewPane() {
 
   return (
     <div style={s.rightPane}>
+      <div style={s.previewHero}>
+        <div style={s.previewHeroCopy}>
+          <div style={s.previewHeroTitle}>{copy.directInstructionCta}</div>
+          <div style={s.previewHeroDescription}>
+            {hasApiKey ? copy.directInstructionHint : copy.directInstructionDisabled}
+          </div>
+        </div>
+        <button
+          type="button"
+          style={selectorActive ? s.previewHeroBtnActive : s.previewHeroBtn}
+          onClick={handleDirectInstruction}
+        >
+          {selectorActive
+            ? copy.selectorActiveCta
+            : selectedElement
+              ? copy.selectorSelectedCta
+              : copy.directInstructionCta}
+        </button>
+      </div>
+
       {/* URL bar */}
       <div style={s.previewBar}>
         <span style={{ color: colors.textMuted, fontSize: '12px' }}>{copy.preview}</span>
