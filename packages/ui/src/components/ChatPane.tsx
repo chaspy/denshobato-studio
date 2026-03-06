@@ -160,7 +160,7 @@ export function ChatPane() {
                 : copy.describeChange
           }
           disabled={loading || !hasApiKey}
-          rows={1}
+          rows={3}
         />
         <button
           type="button"

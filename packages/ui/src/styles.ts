@@ -445,7 +445,7 @@ export const studioStyles = {
     outline: 'none',
     resize: 'none' as const,
     lineHeight: '1.4',
-    minHeight: '20px',
+    minHeight: '72px',
     maxHeight: '120px',
   },
   sendBtn: {
