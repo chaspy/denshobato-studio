@@ -9,16 +9,17 @@ function createDefaultBranchName(sessionId: string | null): string {
 }
 
 export function PRDialog() {
-  const { setPRDialogOpen, createPR, loading, error, clearError, language, sessionId } = useStore();
-  const [branchName, setBranchName] = useState(createDefaultBranchName(sessionId));
+  const { setPRDialogOpen, createPR, loading, error, clearError, language, sessionId, sessions } = useStore();
+  const activeSession = sessions.find((session) => session.id === sessionId);
+  const [branchName, setBranchName] = useState(activeSession?.gitBranch || createDefaultBranchName(sessionId));
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [prUrl, setPrUrl] = useState<string | null>(null);
   const copy = getCopy(language);
 
   useEffect(() => {
-    setBranchName(createDefaultBranchName(sessionId));
-  }, [sessionId]);
+    setBranchName(activeSession?.gitBranch || createDefaultBranchName(sessionId));
+  }, [activeSession?.gitBranch, sessionId]);
 
   const handleSubmit = async () => {
     if (!title.trim() || !branchName.trim()) return;

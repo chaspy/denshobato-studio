@@ -7,6 +7,7 @@ export interface PROptions {
   branchName: string;
   baseBranch?: string;
   files?: string[];
+  useCurrentBranch?: boolean;
 }
 
 export interface PRResult {
@@ -75,8 +76,14 @@ export class GitHubIntegration {
 
     const baseBranch = options.baseBranch ?? this.baseBranch;
 
-    // Create and checkout new branch
-    await this.git.checkoutBranch(options.branchName, baseBranch);
+    if (options.useCurrentBranch) {
+      const branch = await this.git.branchLocal();
+      if (branch.current !== options.branchName) {
+        await this.git.checkout(['-B', options.branchName]);
+      }
+    } else {
+      await this.git.checkoutBranch(options.branchName, baseBranch);
+    }
 
     // Stage and commit
     if (options.files && options.files.length > 0) {
@@ -100,8 +107,9 @@ export class GitHubIntegration {
       base: baseBranch,
     });
 
-    // Switch back to base branch
-    await this.git.checkout(baseBranch);
+    if (!options.useCurrentBranch) {
+      await this.git.checkout(baseBranch);
+    }
 
     return {
       url: pr.html_url,

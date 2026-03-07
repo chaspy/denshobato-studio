@@ -9,3 +9,10 @@ export {
 export { FileOperations, type FilePatch } from './file-ops.js';
 export { DenshobatoAgent } from './agent.js';
 export { GitHubIntegration, type PROptions, type PRResult } from './github.js';
+export { WorkspaceManager, type WorkspaceInfo } from './workspace.js';
+export { PreviewRunnerManager, type PreviewRunnerInfo } from './preview-runner.js';
+export {
+  StudioRuntime,
+  type CreateRuntimeSessionOptions,
+  type CreateRuntimePROptions,
+} from './runtime.js';

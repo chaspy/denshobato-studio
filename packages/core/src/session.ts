@@ -31,8 +31,14 @@ export interface Session {
   createdAt: number;
   updatedAt: number;
   previewUrl: string;
+  previewBaseUrl: string | null;
+  previewPort: number | null;
   baseSessionId: string | null;
   gitBranch: string | null;
+  repoDir: string | null;
+  appDir: string | null;
+  status: 'idle' | 'provisioning' | 'running' | 'failed';
+  lastError: string | null;
   messages: Message[];
   snapshots: FileSnapshot[];
   workspaceFiles: Record<string, string>;
@@ -48,6 +54,12 @@ export interface CreateSessionOptions {
   baseSessionId?: string | null;
   gitBranch?: string | null;
   seedFiles?: Record<string, string>;
+  previewBaseUrl?: string | null;
+  previewPort?: number | null;
+  repoDir?: string | null;
+  appDir?: string | null;
+  status?: Session['status'];
+  lastError?: string | null;
 }
 
 export function deriveSessionTitleFromMessages(
@@ -90,8 +102,14 @@ export class SessionManager {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       previewUrl: resolved.previewUrl ?? '/',
+      previewBaseUrl: resolved.previewBaseUrl ?? null,
+      previewPort: resolved.previewPort ?? null,
       baseSessionId: resolved.baseSessionId ?? null,
       gitBranch: resolved.gitBranch ?? null,
+      repoDir: resolved.repoDir ?? null,
+      appDir: resolved.appDir ?? null,
+      status: resolved.status ?? 'idle',
+      lastError: resolved.lastError ?? null,
       messages: [],
       snapshots: [],
       workspaceFiles: { ...(resolved.seedFiles ?? {}) },
@@ -126,6 +144,21 @@ export class SessionManager {
     if (!session) throw new Error(`Session not found: ${sessionId}`);
 
     session.previewUrl = previewUrl;
+    session.updatedAt = Date.now();
+    this.persist(session);
+  }
+
+  updateSessionRuntime(
+    sessionId: string,
+    runtime: Partial<Pick<
+      Session,
+      'previewBaseUrl' | 'previewPort' | 'gitBranch' | 'repoDir' | 'appDir' | 'status' | 'lastError'
+    >>,
+  ): void {
+    const session = this.sessions.get(sessionId);
+    if (!session) throw new Error(`Session not found: ${sessionId}`);
+
+    Object.assign(session, runtime);
     session.updatedAt = Date.now();
     this.persist(session);
   }
@@ -237,8 +270,14 @@ export class SessionManager {
         const raw = readFileSync(join(this.storageDir, file), 'utf-8');
         const session = JSON.parse(raw) as Session;
         session.previewUrl = session.previewUrl || '/';
+        session.previewBaseUrl = session.previewBaseUrl ?? null;
+        session.previewPort = session.previewPort ?? null;
         session.baseSessionId = session.baseSessionId ?? null;
         session.gitBranch = session.gitBranch ?? null;
+        session.repoDir = session.repoDir ?? null;
+        session.appDir = session.appDir ?? null;
+        session.status = session.status ?? 'idle';
+        session.lastError = session.lastError ?? null;
         session.workspaceFiles = session.workspaceFiles ?? {};
         session.snapshots = session.snapshots.map((snapshot) => ({
           ...snapshot,

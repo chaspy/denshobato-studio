@@ -1,6 +1,7 @@
 import type { Plugin, ViteDevServer } from 'vite';
 import { jsxTransform } from './jsx-transform.js';
 import { createMiddleware } from './middleware.js';
+import { injectPreviewBridge } from './inject.js';
 
 const STUDIO_HTML = `<!doctype html>
 <html lang="en">
@@ -29,12 +30,23 @@ export interface DenshobatoPluginOptions {
 
 export function denshobato(options: DenshobatoPluginOptions = {}): Plugin[] {
   const enabled = options.enabled ?? true;
+  const isPreviewRunner = process.env.DENSHOBATO_PREVIEW_RUNNER === '1';
 
   return [
     {
       name: 'denshobato:jsx-transform',
       enforce: 'pre',
       apply: 'serve',
+      config() {
+        if (!enabled) return;
+        return {
+          server: {
+            watch: {
+              ignored: ['**/.denshobato/**'],
+            },
+          },
+        };
+      },
       transform(code, id) {
         if (!enabled) return null;
         if (!/\.(tsx|jsx)$/.test(id)) return null;
@@ -48,7 +60,7 @@ export function denshobato(options: DenshobatoPluginOptions = {}): Plugin[] {
       name: 'denshobato:api',
       apply: 'serve',
       configureServer(server: ViteDevServer) {
-        if (!enabled) return;
+        if (!enabled || isPreviewRunner) return;
         const projectDir = server.config.root;
         const middleware = createMiddleware(projectDir, options.configPath);
         server.middlewares.use(middleware);
@@ -70,8 +82,16 @@ mountDenshobatoStudio();
 `;
         }
       },
+      transformIndexHtml(html, context) {
+        if (!enabled) return html;
+        const path = context.path || '';
+        if (path === '/dev' || path.startsWith('/dev/') || path.startsWith('/__denshobato')) {
+          return html;
+        }
+        return injectPreviewBridge(html);
+      },
       configureServer(server: ViteDevServer) {
-        if (!enabled) return;
+        if (!enabled || isPreviewRunner) return;
 
         // Register BEFORE Vite's SPA fallback so /dev is not caught by index.html
         server.middlewares.use((req, res, next) => {

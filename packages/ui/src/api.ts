@@ -24,8 +24,10 @@ export interface SessionSummary {
   id: string;
   title: string | null;
   previewUrl?: string;
+  previewBaseUrl?: string | null;
   baseSessionId?: string | null;
   gitBranch?: string | null;
+  status?: 'idle' | 'provisioning' | 'running' | 'failed';
   createdAt: number;
   updatedAt: number;
   messageCount: number;
@@ -37,8 +39,14 @@ export interface SessionDetail {
   createdAt: number;
   updatedAt: number;
   previewUrl: string;
+  previewBaseUrl: string | null;
+  previewPort: number | null;
   baseSessionId: string | null;
   gitBranch: string | null;
+  repoDir: string | null;
+  appDir: string | null;
+  status: 'idle' | 'provisioning' | 'running' | 'failed';
+  lastError: string | null;
   messages: Array<{
     role: 'user' | 'assistant';
     content: string;
@@ -77,6 +85,16 @@ async function fetchJson<T>(path: string, options?: ApiRequestInit): Promise<T> 
 export const api = {
   health(): Promise<{ status: string }> {
     return fetchJson('/health');
+  },
+
+  createSession(options: {
+    previewUrl?: string;
+    baseSessionId?: string;
+  }): Promise<SessionDetail> {
+    return fetchJson('/sessions', {
+      method: 'POST',
+      body: JSON.stringify(options),
+    });
   },
 
   chat(
@@ -123,9 +141,10 @@ export const api = {
   },
 
   createPR(options: {
+    sessionId: string;
     title: string;
     body: string;
-    branchName: string;
+    branchName?: string;
     baseBranch?: string;
   }): Promise<PRResult> {
     return fetchJson('/pr', {

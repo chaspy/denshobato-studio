@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizePreviewUrl } from '../preview-url.js';
+import { compactPreviewUrl, normalizePreviewUrl, resolvePreviewFrameUrl } from '../preview-url.js';
 
 describe('normalizePreviewUrl', () => {
   it('keeps relative paths unchanged', () => {
@@ -28,5 +28,21 @@ describe('normalizePreviewUrl', () => {
     expect(normalizePreviewUrl('https://example.com/app', '39483')).toBe(
       'https://example.com/app',
     );
+  });
+
+  it('stores session-local preview urls as relative paths', () => {
+    expect(
+      compactPreviewUrl(
+        'http://127.0.0.1:40123/todos?filter=done',
+        'http://127.0.0.1:40123',
+        '39483',
+      ),
+    ).toBe('/todos?filter=done');
+  });
+
+  it('resolves relative session preview urls against the session base url', () => {
+    expect(
+      resolvePreviewFrameUrl('/todos', 'http://127.0.0.1:40123', '39483'),
+    ).toBe('http://127.0.0.1:40123/todos');
   });
 });

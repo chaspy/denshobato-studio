@@ -1,8 +1,39 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { api } from '../api.js';
 import { useStore } from '../store.js';
+
+vi.mock('../api.js', () => ({
+  api: {
+    createSession: vi.fn(),
+    updateSessionPreview: vi.fn().mockResolvedValue({ previewUrl: '/' }),
+    listSessions: vi.fn().mockResolvedValue([]),
+    activateSession: vi.fn(),
+    chat: vi.fn(),
+    revert: vi.fn(),
+    createPR: vi.fn(),
+  },
+}));
 
 describe('store', () => {
   beforeEach(() => {
+    vi.mocked(api.createSession).mockResolvedValue({
+      id: 'session-created',
+      createdAt: 1,
+      updatedAt: 1,
+      previewUrl: '/',
+      previewBaseUrl: 'http://127.0.0.1:40123',
+      previewPort: 40123,
+      baseSessionId: null,
+      gitBranch: 'denshobato/session-created',
+      repoDir: '/tmp/repo',
+      appDir: '/tmp/repo/examples/react-todo',
+      status: 'running',
+      lastError: null,
+      messages: [],
+      workspaceFiles: {},
+      changes: [],
+    });
+
     useStore.setState({
       view: 'sessions',
       apiKey: 'sk-ant-test',
@@ -14,6 +45,7 @@ describe('store', () => {
       sessions: [],
       messages: [],
       previewUrl: '/',
+      previewBaseUrl: null,
       selectorActive: false,
       selectedElement: null,
       prDialogOpen: false,
@@ -43,20 +75,22 @@ describe('store', () => {
     expect(useStore.getState().thinkingMode).toBe('deep');
   });
 
-  it('creates session and switches to chat', () => {
-    useStore.getState().createSession();
+  it('creates session and switches to chat', async () => {
+    await useStore.getState().createSession();
     expect(useStore.getState().view).toBe('chat');
-    expect(useStore.getState().sessionId).toBeNull();
+    expect(useStore.getState().sessionId).toBe('session-created');
     expect(useStore.getState().draftBaseSessionId).toBeNull();
     expect(useStore.getState().messages).toEqual([]);
+    expect(useStore.getState().previewBaseUrl).toBe('http://127.0.0.1:40123');
   });
 
-  it('creates a new draft session from the active session', () => {
+  it('creates a new session from the active session', async () => {
     useStore.setState({ sessionId: 'session-1', previewUrl: '/todos' });
-    useStore.getState().createSession();
-    expect(useStore.getState().sessionId).toBeNull();
-    expect(useStore.getState().draftBaseSessionId).toBe('session-1');
-    expect(useStore.getState().previewUrl).toBe('/todos');
+    await useStore.getState().createSession();
+    expect(api.createSession).toHaveBeenCalledWith({
+      baseSessionId: 'session-1',
+      previewUrl: '/todos',
+    });
   });
 
   it('opens settings instead of creating a session when api key is missing', () => {

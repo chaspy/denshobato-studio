@@ -6,7 +6,7 @@ function getCurrentHref(override?: string): string | undefined {
   return window.location.href;
 }
 
-function isRelativePreviewPath(value: string): boolean {
+export function isRelativePreviewPath(value: string): boolean {
   return (
     value.startsWith('/') ||
     value.startsWith('./') ||
@@ -48,4 +48,47 @@ export function normalizePreviewUrl(
   }
 
   return trimmed;
+}
+
+function ensureTrailingSlash(value: string): string {
+  return value.endsWith('/') ? value : `${value}/`;
+}
+
+export function compactPreviewUrl(
+  input: string,
+  previewBaseUrl?: string | null,
+  defaultPort = '',
+  currentHref?: string,
+): string {
+  const normalized = normalizePreviewUrl(input, defaultPort, currentHref);
+  if (!previewBaseUrl || isRelativePreviewPath(normalized)) {
+    return normalized;
+  }
+
+  try {
+    const base = new URL(ensureTrailingSlash(previewBaseUrl));
+    const target = new URL(normalized);
+    if (target.origin !== base.origin) {
+      return normalized;
+    }
+
+    const relativePath = target.pathname.slice(base.pathname.length - 1) || '/';
+    return `${relativePath.startsWith('/') ? relativePath : `/${relativePath}`}${target.search}${target.hash}`;
+  } catch {
+    return normalized;
+  }
+}
+
+export function resolvePreviewFrameUrl(
+  input: string,
+  previewBaseUrl: string | null | undefined,
+  defaultPort: string,
+  currentHref?: string,
+): string {
+  const normalized = normalizePreviewUrl(input, defaultPort, currentHref);
+  if (!previewBaseUrl || !isRelativePreviewPath(normalized)) {
+    return normalized;
+  }
+
+  return new URL(normalized, ensureTrailingSlash(previewBaseUrl)).toString();
 }

@@ -1,8 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
   loadConfig,
-  DenshobatoAgent,
-  GitHubIntegration,
+  StudioRuntime,
   deriveSessionTitleFromMessages,
   type DenshobatoConfig,
 } from '@denshobato-studio/core';
@@ -38,27 +37,17 @@ export function createMiddleware(
   projectDir: string,
   configPath?: string,
 ): (req: IncomingMessage, res: ServerResponse, next: () => void) => void {
-  let agent: DenshobatoAgent | null = null;
+  let runtime: StudioRuntime | null = null;
   let configPromise: Promise<DenshobatoConfig> | null = null;
 
-  async function getAgent(): Promise<DenshobatoAgent> {
-    if (agent) return agent;
+  async function getRuntime(): Promise<StudioRuntime> {
+    if (runtime) return runtime;
     if (!configPromise) {
       configPromise = loadConfig(projectDir);
     }
     const config = await configPromise;
-    agent = new DenshobatoAgent(config, projectDir);
-    return agent;
-  }
-
-  async function getCurrentGitBranch(): Promise<string | null> {
-    const config = await (configPromise ?? loadConfig(projectDir));
-    const github = new GitHubIntegration(projectDir, {
-      baseBranch: config.github.baseBranch,
-      owner: config.github.owner,
-      repo: config.github.repo,
-    });
-    return github.getCurrentBranch();
+    runtime = new StudioRuntime(config, projectDir);
+    return runtime;
   }
 
   return async (req, res, next) => {
@@ -76,37 +65,37 @@ export function createMiddleware(
         return sendJson(res, 200, { status: 'ok' });
       }
 
+      if (path === '/sessions' && method === 'POST') {
+        const body = await readBody(req);
+        const r = await getRuntime();
+        const session = await r.createSession({
+          previewUrl: typeof body.previewUrl === 'string' ? body.previewUrl : undefined,
+          baseSessionId:
+            typeof body.baseSessionId === 'string' ? body.baseSessionId : undefined,
+        });
+        return sendJson(res, 200, session);
+      }
+
       // POST /chat
       if (path === '/chat' && method === 'POST') {
         const body = await readBody(req);
-        const a = await getAgent();
-        const sessionManager = a.getSessionManager();
+        const r = await getRuntime();
         const apiKeyHeader = req.headers['x-denshobato-api-key'];
         const apiKey = Array.isArray(apiKeyHeader) ? apiKeyHeader[0] : apiKeyHeader;
 
-        // Create or reuse session
         let sessionId = body.sessionId as string | undefined;
         if (!sessionId) {
-          const baseSession =
-            typeof body.baseSessionId === 'string'
-              ? sessionManager.getSession(body.baseSessionId)
-              : undefined;
-          const session = sessionManager.createSession({
-            previewUrl:
-              typeof body.previewUrl === 'string'
-                ? body.previewUrl
-                : baseSession?.previewUrl ?? '/',
-            baseSessionId: baseSession?.id ?? null,
-            gitBranch: await getCurrentGitBranch(),
-            seedFiles: baseSession?.workspaceFiles,
+          const session = await r.createSession({
+            previewUrl: typeof body.previewUrl === 'string' ? body.previewUrl : undefined,
+            baseSessionId:
+              typeof body.baseSessionId === 'string' ? body.baseSessionId : undefined,
           });
           sessionId = session.id;
         } else if (typeof body.previewUrl === 'string') {
-          sessionManager.setPreviewUrl(sessionId, body.previewUrl);
+          r.setPreviewUrl(sessionId, body.previewUrl);
         }
 
-        a.restoreSessionWorkspace(sessionId);
-        const result = await a.chat(
+        const result = await r.chat(
           sessionId,
           body.message as string,
           body.context as {
@@ -130,8 +119,8 @@ export function createMiddleware(
 
       // GET /sessions
       if (path === '/sessions' && method === 'GET') {
-        const a = await getAgent();
-        const sessions = a.getSessionManager().listSessions();
+        const r = await getRuntime();
+        const sessions = r.getSessionManager().listSessions();
         return sendJson(
           res,
           200,
@@ -139,8 +128,10 @@ export function createMiddleware(
             id: s.id,
             title: deriveSessionTitleFromMessages(s.messages),
             previewUrl: s.previewUrl,
+            previewBaseUrl: s.previewBaseUrl,
             baseSessionId: s.baseSessionId,
             gitBranch: s.gitBranch,
+            status: s.status,
             createdAt: s.createdAt,
             updatedAt: s.updatedAt,
             messageCount: s.messages.length,
@@ -152,8 +143,8 @@ export function createMiddleware(
       // GET /session/:id
       const sessionMatch = path.match(/^\/session\/([^/]+)$/);
       if (sessionMatch && method === 'GET') {
-        const a = await getAgent();
-        const session = a.getSessionManager().getSession(sessionMatch[1]);
+        const r = await getRuntime();
+        const session = r.getSessionManager().getSession(sessionMatch[1]);
         if (!session) {
           return sendJson(res, 404, { error: 'Session not found' });
         }
@@ -162,54 +153,43 @@ export function createMiddleware(
 
       const activateMatch = path.match(/^\/session\/([^/]+)\/activate$/);
       if (activateMatch && method === 'POST') {
-        const a = await getAgent();
-        const session = a.getSessionManager().getSession(activateMatch[1]);
+        const r = await getRuntime();
+        const session = r.getSessionManager().getSession(activateMatch[1]);
         if (!session) {
           return sendJson(res, 404, { error: 'Session not found' });
         }
-        a.restoreSessionWorkspace(activateMatch[1]);
-        return sendJson(res, 200, a.getSessionManager().getSession(activateMatch[1]));
+        return sendJson(res, 200, await r.ensureSession(activateMatch[1]));
       }
 
       const previewMatch = path.match(/^\/session\/([^/]+)\/preview$/);
       if (previewMatch && method === 'POST') {
         const body = await readBody(req);
-        const a = await getAgent();
-        const session = a.getSessionManager().getSession(previewMatch[1]);
+        const r = await getRuntime();
+        const session = r.getSessionManager().getSession(previewMatch[1]);
         if (!session) {
           return sendJson(res, 404, { error: 'Session not found' });
         }
         const previewUrl = typeof body.previewUrl === 'string' ? body.previewUrl : '/';
-        a.getSessionManager().setPreviewUrl(previewMatch[1], previewUrl);
+        r.setPreviewUrl(previewMatch[1], previewUrl);
         return sendJson(res, 200, { previewUrl });
       }
 
       // POST /session/:id/revert
       const revertMatch = path.match(/^\/session\/([^/]+)\/revert$/);
       if (revertMatch && method === 'POST') {
-        const a = await getAgent();
-        const session = a.getSessionManager().getSession(revertMatch[1]);
+        const r = await getRuntime();
+        const session = r.getSessionManager().getSession(revertMatch[1]);
         if (!session) {
           return sendJson(res, 404, { error: 'Session not found' });
         }
-        const fileOps = a.getFileOps();
-        const snapshots = a.getSessionManager().getSnapshots(revertMatch[1]);
-        for (const snapshot of snapshots) {
-          if (snapshot.exists) {
-            fileOps.writeFile(snapshot.path, snapshot.content);
-          } else {
-            fileOps.deleteFile(snapshot.path);
-          }
-        }
-        a.getSessionManager().revertToSnapshots(revertMatch[1]);
-        return sendJson(res, 200, { reverted: snapshots.map((s) => s.path) });
+        return sendJson(res, 200, { reverted: await r.revertSession(revertMatch[1]) });
       }
 
       // GET /diff/:id
       const diffMatch = path.match(/^\/diff\/([^/]+)$/);
       if (diffMatch && method === 'GET') {
-        const a = await getAgent();
-        const session = a.getSessionManager().getSession(diffMatch[1]);
+        const r = await getRuntime();
+        const session = r.getSessionManager().getSession(diffMatch[1]);
         if (!session) {
           return sendJson(res, 404, { error: 'Session not found' });
         }
@@ -219,17 +199,12 @@ export function createMiddleware(
       // POST /pr
       if (path === '/pr' && method === 'POST') {
         const body = await readBody(req);
-        const a = await getAgent();
-        const config = await loadConfig(projectDir);
-        const github = new GitHubIntegration(projectDir, {
-          baseBranch: config.github.baseBranch,
-          owner: config.github.owner,
-          repo: config.github.repo,
-        });
-        const result = await github.createPR({
+        const r = await getRuntime();
+        const result = await r.createPR({
+          sessionId: body.sessionId as string,
           title: body.title as string,
           body: body.body as string,
-          branchName: body.branchName as string,
+          branchName: body.branchName as string | undefined,
           baseBranch: body.baseBranch as string | undefined,
         });
         return sendJson(res, 200, result);

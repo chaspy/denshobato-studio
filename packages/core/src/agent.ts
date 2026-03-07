@@ -64,19 +64,14 @@ const TOOLS: Anthropic.Tool[] = [
 ];
 
 export class DenshobatoAgent {
-  private fileOps: FileOperations;
   private sessionManager: SessionManager;
   private config: DenshobatoConfig;
+  private baseProjectDir: string;
 
-  constructor(config: DenshobatoConfig, projectDir: string) {
+  constructor(config: DenshobatoConfig, projectDir: string, sessionManager?: SessionManager) {
     this.config = config;
-    this.fileOps = new FileOperations(
-      projectDir,
-      config.editableDirectories,
-      config.includePatterns,
-      config.excludePatterns,
-    );
-    this.sessionManager = new SessionManager(
+    this.baseProjectDir = projectDir;
+    this.sessionManager = sessionManager ?? new SessionManager(
       config.sessionStorageDir ? `${projectDir}/${config.sessionStorageDir}` : undefined,
     );
   }
@@ -85,8 +80,16 @@ export class DenshobatoAgent {
     return this.sessionManager;
   }
 
-  getFileOps(): FileOperations {
-    return this.fileOps;
+  getFileOps(sessionId?: string): FileOperations {
+    const sessionProjectDir =
+      sessionId ? this.sessionManager.getSession(sessionId)?.appDir : null;
+
+    return new FileOperations(
+      sessionProjectDir ?? this.baseProjectDir,
+      this.config.editableDirectories,
+      this.config.includePatterns,
+      this.config.excludePatterns,
+    );
   }
 
   async chat(
@@ -179,15 +182,16 @@ export class DenshobatoAgent {
   restoreSessionWorkspace(sessionId: string): string[] {
     const session = this.sessionManager.getSession(sessionId);
     if (!session) throw new Error(`Session not found: ${sessionId}`);
+    const fileOps = this.getFileOps(sessionId);
 
     const restored: string[] = [];
     for (const file of this.sessionManager.listTrackedFiles()) {
       const hasSessionVersion = Object.prototype.hasOwnProperty.call(session.workspaceFiles, file);
       if (hasSessionVersion) {
         const content = session.workspaceFiles[file];
-        const current = this.fileOps.fileExists(file) ? this.fileOps.readFile(file) : null;
+        const current = fileOps.fileExists(file) ? fileOps.readFile(file) : null;
         if (current !== content) {
-          this.fileOps.writeFile(file, content);
+          fileOps.writeFile(file, content);
           restored.push(file);
         }
         continue;
@@ -197,16 +201,16 @@ export class DenshobatoAgent {
       if (!original) continue;
 
       if (!original.exists) {
-        if (this.fileOps.fileExists(file)) {
-          this.fileOps.deleteFile(file);
+        if (fileOps.fileExists(file)) {
+          fileOps.deleteFile(file);
           restored.push(file);
         }
         continue;
       }
 
-      const current = this.fileOps.fileExists(file) ? this.fileOps.readFile(file) : null;
+      const current = fileOps.fileExists(file) ? fileOps.readFile(file) : null;
       if (current !== original.content) {
-        this.fileOps.writeFile(file, original.content);
+        fileOps.writeFile(file, original.content);
         restored.push(file);
       }
     }
@@ -267,16 +271,18 @@ export class DenshobatoAgent {
     patches: FilePatch[],
   ): Promise<{ content: string; is_error?: boolean }> {
     try {
+      const fileOps = this.getFileOps(sessionId);
+
       switch (toolName) {
         case 'read_file': {
-          const content = this.fileOps.readFile(input.path);
+          const content = fileOps.readFile(input.path);
           return { content };
         }
         case 'write_file': {
-          const fileExists = this.fileOps.fileExists(input.path);
-          const original = fileExists ? this.fileOps.readFile(input.path) : '';
+          const fileExists = fileOps.fileExists(input.path);
+          const original = fileExists ? fileOps.readFile(input.path) : '';
           this.sessionManager.addSnapshot(sessionId, input.path, original, fileExists);
-          const patch = this.fileOps.writeFile(input.path, input.content);
+          const patch = fileOps.writeFile(input.path, input.content);
           patches.push(patch);
           this.sessionManager.setWorkspaceFile(sessionId, patch.file, patch.after);
           this.sessionManager.addChange(sessionId, patch.file, patch.patch);
@@ -284,16 +290,16 @@ export class DenshobatoAgent {
         }
         case 'edit_file': {
           // Snapshot original before first edit
-          const original = this.fileOps.readFile(input.path);
+          const original = fileOps.readFile(input.path);
           this.sessionManager.addSnapshot(sessionId, input.path, original, true);
-          const patch = this.fileOps.editFile(input.path, input.search, input.replace);
+          const patch = fileOps.editFile(input.path, input.search, input.replace);
           patches.push(patch);
           this.sessionManager.setWorkspaceFile(sessionId, patch.file, patch.after);
           this.sessionManager.addChange(sessionId, patch.file, patch.patch);
           return { content: `File edited: ${input.path}` };
         }
         case 'list_files': {
-          const files = await this.fileOps.listFiles(input.pattern);
+          const files = await fileOps.listFiles(input.pattern);
           return { content: files.join('\n') };
         }
         default:

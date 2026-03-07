@@ -12,7 +12,7 @@ import {
   type Language,
   type ThinkingMode,
 } from './i18n.js';
-import { normalizePreviewUrl } from './preview-url.js';
+import { compactPreviewUrl, normalizePreviewUrl } from './preview-url.js';
 import { deriveSessionTitle } from './session-title.js';
 
 export interface SelectedElement {
@@ -35,8 +35,10 @@ export interface SessionSummary {
   id: string;
   title: string | null;
   previewUrl?: string;
+  previewBaseUrl?: string | null;
   baseSessionId?: string | null;
   gitBranch?: string | null;
+  status?: 'idle' | 'provisioning' | 'running' | 'failed';
   createdAt: number;
   updatedAt: number;
   messageCount: number;
@@ -61,6 +63,7 @@ interface DenshobatoState {
 
   // Preview
   previewUrl: string;
+  previewBaseUrl: string | null;
 
   // Component selector
   selectorActive: boolean;
@@ -82,7 +85,7 @@ interface DenshobatoState {
   setPreviewPort: (previewPort: string) => void;
   setPreviewUrl: (url: string) => void;
   loadSessions: () => Promise<void>;
-  createSession: () => void;
+  createSession: () => Promise<void>;
   openSession: (id: string) => Promise<void>;
   selectElement: (el: SelectedElement) => void;
   clearSelectedElement: () => void;
@@ -111,6 +114,7 @@ export const useStore = create<DenshobatoState>((set, get) => ({
   sessions: [],
   messages: [],
   previewUrl: '/',
+  previewBaseUrl: null,
   selectorActive: false,
   selectedElement: null,
   prDialogOpen: false,
@@ -138,8 +142,12 @@ export const useStore = create<DenshobatoState>((set, get) => ({
   setPreviewPort: (previewPort) => {
     persistPreviewPort(previewPort);
     const normalizedPort = getInitialPreviewPort();
-    const { sessionId, previewUrl } = get();
-    const normalizedPreviewUrl = normalizePreviewUrl(previewUrl, normalizedPort);
+    const { sessionId, previewUrl, previewBaseUrl } = get();
+    const normalizedPreviewUrl = compactPreviewUrl(
+      previewUrl,
+      previewBaseUrl,
+      normalizedPort,
+    );
     set({ previewPort: normalizedPort, previewUrl: normalizedPreviewUrl });
     if (sessionId) {
       void api.updateSessionPreview(sessionId, normalizedPreviewUrl).catch(() => {
@@ -149,8 +157,8 @@ export const useStore = create<DenshobatoState>((set, get) => ({
   },
 
   setPreviewUrl: (url) => {
-    const { sessionId, previewPort } = get();
-    const normalized = normalizePreviewUrl(url, previewPort);
+    const { sessionId, previewPort, previewBaseUrl } = get();
+    const normalized = compactPreviewUrl(url, previewBaseUrl, previewPort);
     set({ previewUrl: normalized });
     if (sessionId) {
       void api.updateSessionPreview(sessionId, normalized).catch(() => {
@@ -168,20 +176,72 @@ export const useStore = create<DenshobatoState>((set, get) => ({
     }
   },
 
-  createSession: () => {
-    const { apiKey, sessionId } = get();
+  createSession: async () => {
+    const { apiKey, sessionId, previewUrl, previewPort, previewBaseUrl } = get();
     if (!apiKey) {
       set({ settingsOpen: true });
       return;
     }
-    // Session is created on first message send, seeded from the active session if present.
-    set({
-      view: 'chat',
-      sessionId: null,
-      draftBaseSessionId: sessionId,
-      messages: [],
-      selectedElement: null,
-    });
+
+    set({ loading: true, error: null });
+
+    try {
+      const session = await api.createSession({
+        baseSessionId: sessionId ?? undefined,
+        previewUrl: compactPreviewUrl(previewUrl, previewBaseUrl, previewPort),
+      });
+
+      set((s) => ({
+        loading: false,
+        view: 'chat',
+        sessionId: session.id,
+        draftBaseSessionId: null,
+        messages: [],
+        selectedElement: null,
+        previewUrl: compactPreviewUrl(
+          session.previewUrl || '/',
+          session.previewBaseUrl,
+          s.previewPort,
+        ),
+        previewBaseUrl: session.previewBaseUrl,
+        sessions: s.sessions.some((entry) => entry.id === session.id)
+          ? s.sessions.map((entry) => (
+              entry.id === session.id
+                ? {
+                    ...entry,
+                    title: deriveSessionTitle(session.messages),
+                    previewUrl: session.previewUrl,
+                    previewBaseUrl: session.previewBaseUrl,
+                    baseSessionId: session.baseSessionId,
+                    gitBranch: session.gitBranch,
+                    status: session.status,
+                    createdAt: session.createdAt,
+                    updatedAt: session.updatedAt,
+                    messageCount: session.messages.length,
+                    changeCount: session.changes.length,
+                  }
+                : entry
+            ))
+          : [
+              {
+                id: session.id,
+                title: deriveSessionTitle(session.messages),
+                previewUrl: session.previewUrl,
+                previewBaseUrl: session.previewBaseUrl,
+                baseSessionId: session.baseSessionId,
+                gitBranch: session.gitBranch,
+                status: session.status,
+                createdAt: session.createdAt,
+                updatedAt: session.updatedAt,
+                messageCount: session.messages.length,
+                changeCount: session.changes.length,
+              },
+              ...s.sessions,
+            ],
+      }));
+    } catch (e) {
+      set({ loading: false, error: e instanceof Error ? e.message : String(e) });
+    }
   },
 
   openSession: async (id) => {
@@ -191,7 +251,12 @@ export const useStore = create<DenshobatoState>((set, get) => ({
         view: 'chat',
         sessionId: id,
         draftBaseSessionId: null,
-        previewUrl: normalizePreviewUrl(session.previewUrl || '/', get().previewPort),
+        previewUrl: compactPreviewUrl(
+          session.previewUrl || '/',
+          session.previewBaseUrl,
+          get().previewPort,
+        ),
+        previewBaseUrl: session.previewBaseUrl,
         messages: session.messages.map((m) => ({
           id: genId(),
           role: m.role,
@@ -220,6 +285,8 @@ export const useStore = create<DenshobatoState>((set, get) => ({
       thinkingMode,
       apiKey,
       previewUrl,
+      previewBaseUrl,
+      previewPort,
     } = get();
     if (!apiKey) {
       set({ settingsOpen: true });
@@ -256,7 +323,7 @@ export const useStore = create<DenshobatoState>((set, get) => ({
           thinkingMode,
         },
         apiKey,
-        previewUrl,
+        compactPreviewUrl(previewUrl, previewBaseUrl, previewPort),
       );
 
       const assistantMsg: Message = {
@@ -281,6 +348,7 @@ export const useStore = create<DenshobatoState>((set, get) => ({
                     ...session,
                     title: derivedTitle,
                     previewUrl,
+                    previewBaseUrl,
                     updatedAt: now,
                     messageCount: session.messageCount + 2,
                     changeCount: session.changeCount + result.patches.length,
@@ -292,8 +360,10 @@ export const useStore = create<DenshobatoState>((set, get) => ({
                 id: result.sessionId,
                 title: derivedTitle,
                 previewUrl,
+                previewBaseUrl,
                 baseSessionId: draftBaseSessionId,
                 gitBranch: null,
+                status: 'running',
                 createdAt: now,
                 updatedAt: now,
                 messageCount: 2,
@@ -324,10 +394,22 @@ export const useStore = create<DenshobatoState>((set, get) => ({
   setSettingsOpen: (open) => set({ settingsOpen: open }),
 
   createPR: async (opts) => {
+    const { sessionId } = get();
+    if (!sessionId) {
+      throw new Error('Session not found');
+    }
     set({ loading: true, error: null });
     try {
-      const result = await api.createPR(opts);
-      set({ loading: false, prDialogOpen: false });
+      const result = await api.createPR({ ...opts, sessionId });
+      set((s) => ({
+        loading: false,
+        prDialogOpen: false,
+        sessions: s.sessions.map((session) => (
+          session.id === sessionId
+            ? { ...session, gitBranch: result.branchName }
+            : session
+        )),
+      }));
       return result.url;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

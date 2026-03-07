@@ -2,8 +2,7 @@ import express, { type Express } from 'express';
 import cors from 'cors';
 import {
   loadConfig,
-  DenshobatoAgent,
-  GitHubIntegration,
+  StudioRuntime,
   deriveSessionTitleFromMessages,
 } from '@denshobato-studio/core';
 
@@ -19,16 +18,7 @@ export async function createServer(options: ServerOptions): Promise<Express> {
   const { projectDir, corsOrigin = '*', authToken } = options;
 
   const config = await loadConfig(projectDir);
-  const agent = new DenshobatoAgent(config, projectDir);
-
-  async function getCurrentGitBranch(): Promise<string | null> {
-    const github = new GitHubIntegration(projectDir, {
-      baseBranch: config.github.baseBranch,
-      owner: config.github.owner,
-      repo: config.github.repo,
-    });
-    return github.getCurrentBranch();
-  }
+  const runtime = new StudioRuntime(config, projectDir);
 
   const app = express();
 
@@ -51,33 +41,38 @@ export async function createServer(options: ServerOptions): Promise<Express> {
     res.json({ status: 'ok' });
   });
 
+  app.post('/__denshobato/sessions', async (req, res) => {
+    try {
+      const session = await runtime.createSession({
+        previewUrl: typeof req.body.previewUrl === 'string' ? req.body.previewUrl : undefined,
+        baseSessionId:
+          typeof req.body.baseSessionId === 'string' ? req.body.baseSessionId : undefined,
+      });
+      res.json(session);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ error: msg });
+    }
+  });
+
   // Chat
   app.post('/__denshobato/chat', async (req, res) => {
     try {
       const { message, sessionId, context, preferences, previewUrl, baseSessionId } = req.body;
       const apiKeyHeader = req.header('x-denshobato-api-key')?.trim();
-      const sm = agent.getSessionManager();
 
       let sid = sessionId;
       if (!sid) {
-        const baseSession =
-          typeof baseSessionId === 'string' ? sm.getSession(baseSessionId) : undefined;
-        const session = sm.createSession({
-          previewUrl:
-            typeof previewUrl === 'string'
-              ? previewUrl
-              : baseSession?.previewUrl ?? '/',
-          baseSessionId: baseSession?.id ?? null,
-          gitBranch: await getCurrentGitBranch(),
-          seedFiles: baseSession?.workspaceFiles,
+        const session = await runtime.createSession({
+          previewUrl: typeof previewUrl === 'string' ? previewUrl : undefined,
+          baseSessionId: typeof baseSessionId === 'string' ? baseSessionId : undefined,
         });
         sid = session.id;
       } else if (typeof previewUrl === 'string') {
-        sm.setPreviewUrl(sid, previewUrl);
+        runtime.setPreviewUrl(sid, previewUrl);
       }
 
-      agent.restoreSessionWorkspace(sid);
-      const result = await agent.chat(sid, message, context, preferences, apiKeyHeader);
+      const result = await runtime.chat(sid, message, context, preferences, apiKeyHeader);
       res.json({ sessionId: sid, response: result.response, patches: result.patches });
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -87,14 +82,16 @@ export async function createServer(options: ServerOptions): Promise<Express> {
 
   // List sessions
   app.get('/__denshobato/sessions', (_req, res) => {
-    const sessions = agent.getSessionManager().listSessions();
+    const sessions = runtime.getSessionManager().listSessions();
     res.json(
       sessions.map((s) => ({
         id: s.id,
         title: deriveSessionTitleFromMessages(s.messages),
         previewUrl: s.previewUrl,
+        previewBaseUrl: s.previewBaseUrl,
         baseSessionId: s.baseSessionId,
         gitBranch: s.gitBranch,
+        status: s.status,
         createdAt: s.createdAt,
         updatedAt: s.updatedAt,
         messageCount: s.messages.length,
@@ -105,17 +102,16 @@ export async function createServer(options: ServerOptions): Promise<Express> {
 
   // Get session
   app.get('/__denshobato/session/:id', (req, res) => {
-    const session = agent.getSessionManager().getSession(req.params.id);
+    const session = runtime.getSessionManager().getSession(req.params.id);
     if (!session) return res.status(404).json({ error: 'Session not found' });
     res.json(session);
   });
 
-  app.post('/__denshobato/session/:id/activate', (req, res) => {
+  app.post('/__denshobato/session/:id/activate', async (req, res) => {
     try {
-      const session = agent.getSessionManager().getSession(req.params.id);
+      const session = runtime.getSessionManager().getSession(req.params.id);
       if (!session) return res.status(404).json({ error: 'Session not found' });
-      agent.restoreSessionWorkspace(req.params.id);
-      res.json(agent.getSessionManager().getSession(req.params.id));
+      res.json(await runtime.ensureSession(req.params.id));
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       res.status(500).json({ error: msg });
@@ -124,10 +120,10 @@ export async function createServer(options: ServerOptions): Promise<Express> {
 
   app.post('/__denshobato/session/:id/preview', (req, res) => {
     try {
-      const session = agent.getSessionManager().getSession(req.params.id);
+      const session = runtime.getSessionManager().getSession(req.params.id);
       if (!session) return res.status(404).json({ error: 'Session not found' });
       const previewUrl = typeof req.body.previewUrl === 'string' ? req.body.previewUrl : '/';
-      agent.getSessionManager().setPreviewUrl(req.params.id, previewUrl);
+      runtime.setPreviewUrl(req.params.id, previewUrl);
       res.json({ previewUrl });
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -136,22 +132,11 @@ export async function createServer(options: ServerOptions): Promise<Express> {
   });
 
   // Revert session
-  app.post('/__denshobato/session/:id/revert', (req, res) => {
+  app.post('/__denshobato/session/:id/revert', async (req, res) => {
     try {
-      const session = agent.getSessionManager().getSession(req.params.id);
+      const session = runtime.getSessionManager().getSession(req.params.id);
       if (!session) return res.status(404).json({ error: 'Session not found' });
-
-      const snapshots = agent.getSessionManager().getSnapshots(req.params.id);
-      const fileOps = agent.getFileOps();
-      for (const snapshot of snapshots) {
-        if (snapshot.exists) {
-          fileOps.writeFile(snapshot.path, snapshot.content);
-        } else {
-          fileOps.deleteFile(snapshot.path);
-        }
-      }
-      agent.getSessionManager().revertToSnapshots(req.params.id);
-      res.json({ reverted: snapshots.map((s) => s.path) });
+      res.json({ reverted: await runtime.revertSession(req.params.id) });
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       res.status(500).json({ error: msg });
@@ -160,7 +145,7 @@ export async function createServer(options: ServerOptions): Promise<Express> {
 
   // Get diff
   app.get('/__denshobato/diff/:id', (req, res) => {
-    const session = agent.getSessionManager().getSession(req.params.id);
+    const session = runtime.getSessionManager().getSession(req.params.id);
     if (!session) return res.status(404).json({ error: 'Session not found' });
     res.json({ changes: session.changes });
   });
@@ -168,12 +153,13 @@ export async function createServer(options: ServerOptions): Promise<Express> {
   // Create PR
   app.post('/__denshobato/pr', async (req, res) => {
     try {
-      const github = new GitHubIntegration(projectDir, {
-        baseBranch: config.github.baseBranch,
-        owner: config.github.owner,
-        repo: config.github.repo,
+      const result = await runtime.createPR({
+        sessionId: req.body.sessionId as string,
+        title: req.body.title as string,
+        body: req.body.body as string,
+        branchName: req.body.branchName as string | undefined,
+        baseBranch: req.body.baseBranch as string | undefined,
       });
-      const result = await github.createPR(req.body);
       res.json(result);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -184,4 +170,4 @@ export async function createServer(options: ServerOptions): Promise<Express> {
   return app;
 }
 
-export { loadConfig, DenshobatoAgent, GitHubIntegration };
+export { loadConfig, StudioRuntime };

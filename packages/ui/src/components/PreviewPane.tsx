@@ -2,10 +2,29 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useStore } from '../store.js';
 import { studioStyles as s, colors } from '../styles.js';
 import { getCopy } from '../i18n.js';
+import { isRelativePreviewPath, resolvePreviewFrameUrl } from '../preview-url.js';
+
+function supportsSelector(previewUrl: string): boolean {
+  const trimmed = previewUrl.trim() || '/';
+  if (isRelativePreviewPath(trimmed)) {
+    return true;
+  }
+
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  try {
+    return new URL(trimmed).origin === window.location.origin;
+  } catch {
+    return false;
+  }
+}
 
 export function PreviewPane() {
   const {
     previewUrl,
+    previewBaseUrl,
     setPreviewUrl,
     selectorActive,
     selectedElement,
@@ -14,11 +33,14 @@ export function PreviewPane() {
     language,
     apiKey,
     setSettingsOpen,
+    previewPort,
   } = useStore();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [urlInput, setUrlInput] = useState(previewUrl);
   const copy = getCopy(language);
   const hasApiKey = apiKey.trim().length > 0;
+  const resolvedPreviewUrl = resolvePreviewFrameUrl(previewUrl, previewBaseUrl, previewPort);
+  const selectorSupported = supportsSelector(previewUrl);
 
   useEffect(() => {
     setUrlInput(previewUrl);
@@ -38,12 +60,23 @@ export function PreviewPane() {
       setSettingsOpen(true);
       return;
     }
+
+    if (!selectorSupported) {
+      return;
+    }
     toggleSelector();
   };
 
-  // Listen for messages from iframe
   useEffect(() => {
     const handler = (e: MessageEvent) => {
+      if (e.source !== iframeRef.current?.contentWindow) {
+        return;
+      }
+
+      if (e.data?.source !== 'denshobato-preview') {
+        return;
+      }
+
       if (e.data?.type === 'denshobato:elementSelected') {
         selectElement({
           file: e.data.file,
@@ -57,109 +90,35 @@ export function PreviewPane() {
     return () => window.removeEventListener('message', handler);
   }, [selectElement]);
 
-  // Inject selector script into iframe when selector is active
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
 
-    const injectScript = () => {
-      try {
-        const doc = iframe.contentDocument;
-        if (!doc) return;
-
-        // Remove previous injection
-        const existing = doc.getElementById('denshobato-selector-script');
-        if (existing) existing.remove();
-
-        if (!selectorActive) return;
-
-        const script = doc.createElement('script');
-        script.id = 'denshobato-selector-script';
-        script.textContent = `
-          (function() {
-            let hoveredEl = null;
-            function onMouseOver(e) {
-              if (hoveredEl) {
-                hoveredEl.style.outline = '';
-                hoveredEl.style.outlineOffset = '';
-              }
-              hoveredEl = e.target;
-              const file = hoveredEl.getAttribute('data-denshobato-file');
-              if (file) {
-                hoveredEl.style.outline = '2px solid #7c5cfc';
-                hoveredEl.style.outlineOffset = '2px';
-              }
-            }
-            function onMouseOut(e) {
-              if (hoveredEl) {
-                hoveredEl.style.outline = '';
-                hoveredEl.style.outlineOffset = '';
-              }
-            }
-            function onClick(e) {
-              e.preventDefault();
-              e.stopPropagation();
-              const el = e.target;
-              const file = el.getAttribute('data-denshobato-file');
-              const line = el.getAttribute('data-denshobato-line');
-              if (file && line) {
-                if (hoveredEl) {
-                  hoveredEl.style.outline = '';
-                  hoveredEl.style.outlineOffset = '';
-                }
-                window.parent.postMessage({
-                  type: 'denshobato:elementSelected',
-                  file: file,
-                  line: parseInt(line, 10),
-                  tagName: el.tagName.toLowerCase(),
-                  textContent: (el.textContent || '').slice(0, 100),
-                }, '*');
-                cleanup();
-              }
-            }
-            function onKeyDown(e) {
-              if (e.key === 'Escape') {
-                cleanup();
-                window.parent.postMessage({ type: 'denshobato:selectorCancelled' }, '*');
-              }
-            }
-            function cleanup() {
-              document.removeEventListener('mouseover', onMouseOver, true);
-              document.removeEventListener('mouseout', onMouseOut, true);
-              document.removeEventListener('click', onClick, true);
-              document.removeEventListener('keydown', onKeyDown, true);
-              document.body.style.cursor = '';
-              if (hoveredEl) {
-                hoveredEl.style.outline = '';
-                hoveredEl.style.outlineOffset = '';
-              }
-            }
-            document.addEventListener('mouseover', onMouseOver, true);
-            document.addEventListener('mouseout', onMouseOut, true);
-            document.addEventListener('click', onClick, true);
-            document.addEventListener('keydown', onKeyDown, true);
-            document.body.style.cursor = 'crosshair';
-          })();
-        `;
-        doc.head.appendChild(script);
-      } catch {
-        // Cross-origin iframe, can't inject
-      }
+    const syncSelectorState = () => {
+      iframe.contentWindow?.postMessage({
+        source: 'denshobato-studio',
+        type: selectorActive ? 'denshobato:selector:start' : 'denshobato:selector:stop',
+      }, '*');
     };
 
-    // Inject after iframe loads
-    iframe.addEventListener('load', injectScript);
-    // Also try immediately (iframe might already be loaded)
-    injectScript();
+    iframe.addEventListener('load', syncSelectorState);
+    syncSelectorState();
 
     return () => {
-      iframe.removeEventListener('load', injectScript);
+      iframe.removeEventListener('load', syncSelectorState);
     };
-  }, [selectorActive]);
+  }, [resolvedPreviewUrl, selectorActive]);
 
-  // Listen for selector cancel from iframe
   useEffect(() => {
     const handler = (e: MessageEvent) => {
+      if (e.source !== iframeRef.current?.contentWindow) {
+        return;
+      }
+
+      if (e.data?.source !== 'denshobato-preview') {
+        return;
+      }
+
       if (e.data?.type === 'denshobato:selectorCancelled') {
         if (useStore.getState().selectorActive) {
           toggleSelector();
@@ -204,7 +163,11 @@ export function PreviewPane() {
         </form>
         <button
           style={s.btn}
-          onClick={() => iframeRef.current?.contentWindow?.location.reload()}
+          onClick={() => {
+            if (iframeRef.current) {
+              iframeRef.current.src = resolvedPreviewUrl;
+            }
+          }}
           title={copy.refreshPreview}
         >
           &#x21bb;
@@ -215,7 +178,7 @@ export function PreviewPane() {
       <div style={{ flex: 1, position: 'relative' }}>
         <iframe
           ref={iframeRef}
-          src={previewUrl}
+          src={resolvedPreviewUrl}
           style={s.iframe}
           width="100%"
           height="100%"
