@@ -77,7 +77,7 @@ export function denshobato(options: DenshobatoPluginOptions = {}): Plugin[] {
       load(id) {
         if (id === RESOLVED_VIRTUAL_MODULE_ID) {
           return `
-import { mountDenshobatoStudio } from '@denshobato-studio/ui';
+import { mountDenshobatoStudio } from '@chaspy/denshobato-ui';
 mountDenshobatoStudio();
 `;
         }

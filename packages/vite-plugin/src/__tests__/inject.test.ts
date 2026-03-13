@@ -17,7 +17,7 @@ describe('denshobato studio plugin', () => {
     const load = studioPlugin!.load as (id: string) => string | undefined;
     const code = load('\0virtual:denshobato-studio');
     expect(code).toContain('mountDenshobatoStudio');
-    expect(code).toContain('@denshobato-studio/ui');
+    expect(code).toContain('@chaspy/denshobato-ui');
   });
 
   it('creates three plugins', () => {

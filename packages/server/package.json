@@ -1,6 +1,6 @@
 {
-  "name": "@denshobato-studio/server",
-  "version": "0.1.0",
+  "name": "@chaspy/denshobato-server",
+  "version": "0.2.0",
   "description": "Standalone Express server for Denshobato Studio",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -16,7 +16,9 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "publishConfig": {
     "access": "public"
   },
@@ -27,7 +29,12 @@
   },
   "homepage": "https://github.com/chaspy/denshobato-studio#readme",
   "bugs": "https://github.com/chaspy/denshobato-studio/issues",
-  "keywords": ["ai", "express", "server", "denshobato"],
+  "keywords": [
+    "ai",
+    "express",
+    "server",
+    "denshobato"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -36,7 +43,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@denshobato-studio/core": "workspace:*",
+    "@chaspy/denshobato-core": "workspace:*",
     "cors": "^2.8.5",
     "express": "^4.21.0"
   },

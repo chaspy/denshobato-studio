@@ -16,17 +16,17 @@ AI-powered UI editing overlay for Vite + React applications. Select any UI eleme
 
 | Package | Description | npm |
 |---------|-------------|-----|
-| [`@denshobato-studio/vite-plugin`](./packages/vite-plugin) | Vite plugin (JSX transform + dev server middleware) | [![npm](https://img.shields.io/npm/v/@denshobato-studio/vite-plugin)](https://www.npmjs.com/package/@denshobato-studio/vite-plugin) |
-| [`@denshobato-studio/core`](./packages/core) | LLM integration, file operations, session management, GitHub integration | [![npm](https://img.shields.io/npm/v/@denshobato-studio/core)](https://www.npmjs.com/package/@denshobato-studio/core) |
-| [`@denshobato-studio/ui`](./packages/ui) | React overlay UI (chat, element selector, diff viewer, PR dialog) | [![npm](https://img.shields.io/npm/v/@denshobato-studio/ui)](https://www.npmjs.com/package/@denshobato-studio/ui) |
-| [`@denshobato-studio/server`](./packages/server) | Standalone Express server for non-Vite environments | [![npm](https://img.shields.io/npm/v/@denshobato-studio/server)](https://www.npmjs.com/package/@denshobato-studio/server) |
+| [`@chaspy/denshobato-vite-plugin`](./packages/vite-plugin) | Vite plugin (JSX transform + dev server middleware) | [![npm](https://img.shields.io/npm/v/@chaspy/denshobato-vite-plugin)](https://www.npmjs.com/package/@chaspy/denshobato-vite-plugin) |
+| [`@chaspy/denshobato-core`](./packages/core) | LLM integration, file operations, session management, GitHub integration | [![npm](https://img.shields.io/npm/v/@chaspy/denshobato-core)](https://www.npmjs.com/package/@chaspy/denshobato-core) |
+| [`@chaspy/denshobato-ui`](./packages/ui) | React overlay UI (chat, element selector, diff viewer, PR dialog) | [![npm](https://img.shields.io/npm/v/@chaspy/denshobato-ui)](https://www.npmjs.com/package/@chaspy/denshobato-ui) |
+| [`@chaspy/denshobato-server`](./packages/server) | Standalone Express server for non-Vite environments | [![npm](https://img.shields.io/npm/v/@chaspy/denshobato-server)](https://www.npmjs.com/package/@chaspy/denshobato-server) |
 
 ## Quick Start
 
 ### 1. Install
 
 ```bash
-npm install @denshobato-studio/vite-plugin @denshobato-studio/ui
+npm install @chaspy/denshobato-vite-plugin @chaspy/denshobato-ui
 ```
 
 ### 2. Add the Vite plugin
@@ -35,7 +35,7 @@ npm install @denshobato-studio/vite-plugin @denshobato-studio/ui
 // vite.config.ts
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { denshobato } from '@denshobato-studio/vite-plugin'
+import { denshobato } from '@chaspy/denshobato-vite-plugin'
 
 export default defineConfig({
   plugins: [denshobato(), react()],
@@ -81,7 +81,7 @@ Browser                          Vite Dev Server
 Create an optional `denshobato.config.ts` in your project root:
 
 ```ts
-import { defineConfig } from '@denshobato-studio/core'
+import { defineConfig } from '@chaspy/denshobato-core'
 
 export default defineConfig({
   // Claude model to use (default: 'claude-sonnet-4-20250514')
@@ -116,7 +116,7 @@ export default defineConfig({
 For non-Vite environments, use the standalone Express server:
 
 ```bash
-npm install @denshobato-studio/server
+npm install @chaspy/denshobato-server
 ```
 
 ```bash
@@ -126,7 +126,7 @@ npx denshobato-server --project-dir ./my-app --port 3000
 Or programmatically:
 
 ```ts
-import { createServer } from '@denshobato-studio/server'
+import { createServer } from '@chaspy/denshobato-server'
 
 const app = await createServer({
   projectDir: './my-app',

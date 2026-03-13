@@ -1,6 +1,6 @@
 {
-  "name": "@denshobato-studio/ui",
-  "version": "0.1.0",
+  "name": "@chaspy/denshobato-ui",
+  "version": "0.2.0",
   "description": "React UI overlay for Denshobato Studio - chat, element selector, diff viewer, PR dialog",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -17,7 +17,9 @@
       "require": "./dist/inject.cjs"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "publishConfig": {
     "access": "public"
   },
@@ -28,7 +30,13 @@
   },
   "homepage": "https://github.com/chaspy/denshobato-studio#readme",
   "bugs": "https://github.com/chaspy/denshobato-studio/issues",
-  "keywords": ["ai", "react", "ui-editing", "overlay", "denshobato"],
+  "keywords": [
+    "ai",
+    "react",
+    "ui-editing",
+    "overlay",
+    "denshobato"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",

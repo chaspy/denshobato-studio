@@ -1,6 +1,6 @@
 {
-  "name": "@denshobato-studio/core",
-  "version": "0.1.0",
+  "name": "@chaspy/denshobato-core",
+  "version": "0.2.0",
   "description": "LLM integration, file operations, session management, and GitHub integration for Denshobato Studio",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -13,7 +13,9 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "publishConfig": {
     "access": "public"
   },
@@ -24,7 +26,15 @@
   },
   "homepage": "https://github.com/chaspy/denshobato-studio#readme",
   "bugs": "https://github.com/chaspy/denshobato-studio/issues",
-  "keywords": ["ai", "llm", "claude", "react", "ui-editing", "code-generation", "denshobato"],
+  "keywords": [
+    "ai",
+    "llm",
+    "claude",
+    "react",
+    "ui-editing",
+    "code-generation",
+    "denshobato"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",

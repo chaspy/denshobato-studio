@@ -68,7 +68,7 @@ describe('denshobato plugin (extended)', () => {
       const code = load('\0virtual:denshobato-studio');
       expect(code).toBeDefined();
       expect(code).toContain('mountDenshobatoStudio');
-      expect(code).toContain('@denshobato-studio/ui');
+      expect(code).toContain('@chaspy/denshobato-ui');
     });
 
     it('does not load non-virtual modules', () => {

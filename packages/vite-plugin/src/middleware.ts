@@ -4,7 +4,7 @@ import {
   StudioRuntime,
   deriveSessionTitleFromMessages,
   type DenshobatoConfig,
-} from '@denshobato-studio/core';
+} from '@chaspy/denshobato-core';
 
 const API_PREFIX = '/__denshobato';
 

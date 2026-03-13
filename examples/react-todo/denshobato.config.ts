@@ -1,4 +1,4 @@
-import { defineConfig } from '@denshobato-studio/core';
+import { defineConfig } from '@chaspy/denshobato-core';
 
 export default defineConfig({
   model: 'claude-sonnet-4-20250514',

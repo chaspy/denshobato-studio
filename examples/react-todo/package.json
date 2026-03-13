@@ -14,8 +14,8 @@
     "react-router-dom": "^7.1.0"
   },
   "devDependencies": {
-    "@denshobato-studio/vite-plugin": "workspace:*",
-    "@denshobato-studio/ui": "workspace:*",
+    "@chaspy/denshobato-vite-plugin": "workspace:*",
+    "@chaspy/denshobato-ui": "workspace:*",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",

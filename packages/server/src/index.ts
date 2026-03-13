@@ -4,7 +4,7 @@ import {
   loadConfig,
   StudioRuntime,
   deriveSessionTitleFromMessages,
-} from '@denshobato-studio/core';
+} from '@chaspy/denshobato-core';
 
 export interface ServerOptions {
   projectDir: string;

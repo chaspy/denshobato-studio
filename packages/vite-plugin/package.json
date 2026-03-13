@@ -1,6 +1,6 @@
 {
-  "name": "@denshobato-studio/vite-plugin",
-  "version": "0.1.0",
+  "name": "@chaspy/denshobato-vite-plugin",
+  "version": "0.2.0",
   "description": "Vite plugin for Denshobato Studio - JSX transform and dev server middleware",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -13,7 +13,9 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "publishConfig": {
     "access": "public"
   },
@@ -24,7 +26,14 @@
   },
   "homepage": "https://github.com/chaspy/denshobato-studio#readme",
   "bugs": "https://github.com/chaspy/denshobato-studio/issues",
-  "keywords": ["vite", "vite-plugin", "ai", "react", "jsx-transform", "denshobato"],
+  "keywords": [
+    "vite",
+    "vite-plugin",
+    "ai",
+    "react",
+    "jsx-transform",
+    "denshobato"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -33,7 +42,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@denshobato-studio/core": "workspace:*",
+    "@chaspy/denshobato-core": "workspace:*",
     "@babel/parser": "^7.26.0",
     "@babel/traverse": "^7.26.0",
     "@babel/generator": "^7.26.0",
