@@ -1,6 +1,10 @@
 {
   "name": "denshobato-studio",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chaspy/denshobato-studio.git"
+  },
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
@@ -8,6 +12,9 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "clean": "turbo run clean",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "pnpm build && changeset publish",
     "example:dev": "pnpm --filter react-todo exec vite --port 39483"
   },
   "devDependencies": {

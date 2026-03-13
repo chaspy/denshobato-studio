@@ -17,6 +17,17 @@
     }
   },
   "files": ["dist"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chaspy/denshobato-studio.git",
+    "directory": "packages/server"
+  },
+  "homepage": "https://github.com/chaspy/denshobato-studio#readme",
+  "bugs": "https://github.com/chaspy/denshobato-studio/issues",
+  "keywords": ["ai", "express", "server", "denshobato"],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",

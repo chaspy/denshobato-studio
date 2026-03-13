@@ -14,6 +14,17 @@
     }
   },
   "files": ["dist"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chaspy/denshobato-studio.git",
+    "directory": "packages/vite-plugin"
+  },
+  "homepage": "https://github.com/chaspy/denshobato-studio#readme",
+  "bugs": "https://github.com/chaspy/denshobato-studio/issues",
+  "keywords": ["vite", "vite-plugin", "ai", "react", "jsx-transform", "denshobato"],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
