@@ -209,6 +209,12 @@ export function ChatPane() {
             style={s.input}
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if ((e.shiftKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
             placeholder={
               !hasApiKey
                 ? copy.chatLockedPlaceholder
@@ -217,7 +223,7 @@ export function ChatPane() {
                   : copy.describeChange
             }
             disabled={loading || !hasApiKey}
-            rows={3}
+            rows={5}
           />
           <div style={s.modeTools}>
             <button
