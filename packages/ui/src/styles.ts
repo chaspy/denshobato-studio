@@ -481,10 +481,10 @@ export const studioStyles = {
     color: colors.text,
     fontSize: '13px',
     outline: 'none',
-    resize: 'none' as const,
+    resize: 'vertical' as const,
     lineHeight: '1.4',
-    minHeight: '72px',
-    maxHeight: '120px',
+    minHeight: '120px',
+    maxHeight: '320px',
   },
   sendBtn: {
     padding: '8px 16px',

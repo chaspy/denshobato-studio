@@ -132,8 +132,8 @@ const translations: Record<Language, Translator> = {
     emptyChatTitle: 'Describe what you want to change',
     emptyChatDescription: 'Use the element selector to pick a UI component, then type your instruction.',
     selectedElement: 'Selected element',
-    describeSelectedElement: 'Describe how to modify this element...',
-    describeChange: 'Describe the change you want to make...',
+    describeSelectedElement: 'Describe how to modify this element... (Shift+Enter to send)',
+    describeChange: 'Describe the change you want to make... (Shift+Enter to send)',
     send: 'Send',
     thinking: {
       standard: 'Thinking...',
@@ -219,8 +219,8 @@ const translations: Record<Language, Translator> = {
     emptyChatTitle: '変更したい内容を入力してください',
     emptyChatDescription: '要素選択で UI コンポーネントを指定してから、変更内容を入力します。',
     selectedElement: '選択中の要素',
-    describeSelectedElement: 'この要素をどう変更したいか入力してください...',
-    describeChange: '変更したい内容を入力してください...',
+    describeSelectedElement: 'この要素をどう変更したいか入力してください... (Shift+Enter で送信)',
+    describeChange: '変更したい内容を入力してください... (Shift+Enter で送信)',
     send: '送信',
     thinking: {
       standard: '考え中...',
